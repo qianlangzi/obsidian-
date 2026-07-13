@@ -6,6 +6,8 @@ InboxDock 是一个 Windows 桌面材料桶。即使 Obsidian 完全退出，也
 
 ![InboxDock 主界面](assets/screenshots/inboxdock-expanded.jpg)
 
+> 当前是首个可用版本。项目会持续完善，欢迎通过 GitHub Issues 提交使用反馈和功能建议。
+
 ## 功能
 
 - 桌面悬浮窗口与系统托盘
