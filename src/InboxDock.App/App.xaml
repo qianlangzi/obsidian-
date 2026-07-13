@@ -2,6 +2,6 @@
   <Application.Resources>
     <SolidColorBrush x:Key="Paper" Color="#F5F6F3"/><SolidColorBrush x:Key="Surface" Color="#FFFFFF"/>
     <SolidColorBrush x:Key="Ink" Color="#202421"/><SolidColorBrush x:Key="Muted" Color="#6F7771"/>
-    <SolidColorBrush x:Key="Line" Color="#D8DED9"/><SolidColorBrush x:Key="Accent" Color="#26734D"/>
+    <SolidColorBrush x:Key="Line" Color="#D8DED9"/><SolidColorBrush x:Key="Accent" Color="#26734D"/><SolidColorBrush x:Key="AccentSoft" Color="#E4F1E9"/>
   </Application.Resources>
 </Application>

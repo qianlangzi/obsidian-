@@ -28,14 +28,7 @@ public static class DailyMarkdown
             normalized += $"{Environment.NewLine}{Environment.NewLine}{SectionHeading}";
         }
 
-        var label = category switch
-        {
-            DailyCategory.Done => "完成",
-            DailyCategory.Learning => "学习",
-            DailyCategory.Problem => "问题",
-            DailyCategory.Idea => "灵感",
-            _ => throw new ArgumentOutOfRangeException(nameof(category)),
-        };
+        var label = category.DisplayName();
 
         return $"{normalized}{Environment.NewLine}{Environment.NewLine}- {time:HH:mm} · {label} · {entry.Trim()} <!-- inboxdock:{captureId:D} -->{Environment.NewLine}";
     }

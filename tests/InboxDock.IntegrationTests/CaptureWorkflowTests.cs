@@ -47,6 +47,24 @@ public sealed class CaptureWorkflowTests : IDisposable
         Assert.Contains("用户内容", content);
     }
 
+    [Fact]
+    public async Task InboxUndo_MovesCreatedFilesToRecovery()
+    {
+        var layout = new VaultLayout(AppSettings.CreateDefault(root));
+        var source = Path.Combine(root, "原始.txt");
+        await File.WriteAllTextAsync(source, "keep me");
+        var capture = await new InboxCaptureService(layout).CaptureFilesAsync([source]);
+        var recovery = Path.Combine(root, "recovery");
+
+        var result = await new UndoService(recovery).UndoAsync(capture);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("keep me", await File.ReadAllTextAsync(source));
+        Assert.False(File.Exists(capture.InboxNotePath));
+        Assert.All(capture.AttachmentPaths, path => Assert.False(File.Exists(path)));
+        Assert.NotEmpty(Directory.GetFiles(recovery, "*", SearchOption.AllDirectories));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(root)) Directory.Delete(root, true);

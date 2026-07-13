@@ -1,0 +1,21 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet test InboxDock.sln -c Release
+      - run: dotnet publish src/InboxDock.App -c Release -r win-x64 --self-contained true -o artifacts/publish
+      - shell: pwsh
+        run: Compress-Archive artifacts/publish/* artifacts/InboxDock-win-x64.zip
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/InboxDock-win-x64.zip
