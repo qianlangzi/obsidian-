@@ -1,1 +1,10 @@
 .worktrees/
+**/bin/
+**/obj/
+.vs/
+.idea/
+*.user
+*.suo
+artifacts/
+publish/
+InboxDock.local.json
