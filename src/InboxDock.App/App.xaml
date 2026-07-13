@@ -1,9 +1,7 @@
-﻿<Application x:Class="InboxDock.App.App"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:InboxDock.App"
-             StartupUri="MainWindow.xaml">
-    <Application.Resources>
-         
-    </Application.Resources>
+<Application x:Class="InboxDock.App.App" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" ShutdownMode="OnExplicitShutdown">
+  <Application.Resources>
+    <SolidColorBrush x:Key="Paper" Color="#F5F6F3"/><SolidColorBrush x:Key="Surface" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="Ink" Color="#202421"/><SolidColorBrush x:Key="Muted" Color="#6F7771"/>
+    <SolidColorBrush x:Key="Line" Color="#D8DED9"/><SolidColorBrush x:Key="Accent" Color="#26734D"/>
+  </Application.Resources>
 </Application>
