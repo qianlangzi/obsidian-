@@ -28,6 +28,7 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool canUndo;
     [ObservableProperty] private bool hasVault;
     [ObservableProperty] private bool isConfirmationOpen;
+    [ObservableProperty] private bool isDeleteConfirmation;
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private StagedMaterial? selectedMaterial;
     [ObservableProperty] private string vaultPath = string.Empty;
@@ -91,8 +92,6 @@ public sealed partial class MainViewModel : ObservableObject
         });
     }
 
-    public Task CaptureFilesAsync(IReadOnlyList<string> files) => StageFilesAsync(files);
-
     public async Task<bool> StagePastedLinkAsync(string value)
     {
         var recognized = false;
@@ -111,6 +110,7 @@ public sealed partial class MainViewModel : ObservableObject
     public async Task SubmitDraftAsync()
     {
         if (string.IsNullOrWhiteSpace(DraftText)) return;
+        CancelPendingDraftSave();
         await Run(async () =>
         {
             var material = await staging.StageDraftAsync(DraftText);
@@ -122,8 +122,6 @@ public sealed partial class MainViewModel : ObservableObject
             StatusText = "文字已暂存，请确认";
         });
     }
-
-    public Task CaptureTextAsync() => SubmitDraftAsync();
 
     public async Task ConfirmSelectedAsync()
     {
@@ -150,7 +148,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     public async Task DeferSelectedAsync()
     {
-        if (SelectedMaterial is null || stagedCapture is null)
+        if (SelectedMaterial is null)
         {
             IsConfirmationOpen = false;
             return;
@@ -158,7 +156,11 @@ public sealed partial class MainViewModel : ObservableObject
 
         await Run(async () =>
         {
-            var deferred = await stagedCapture.DeferAsync(SelectedMaterial.Id);
+            var deferred = stagedCapture is not null
+                ? await stagedCapture.DeferAsync(SelectedMaterial.Id)
+                : await staging.UpdateAsync(
+                    SelectedMaterial.Id,
+                    item => item with { Status = StagedMaterialStatus.Deferred, LastError = null });
             RefreshStagedItems();
             SelectedMaterial = deferred;
             IsConfirmationOpen = false;
@@ -189,14 +191,29 @@ public sealed partial class MainViewModel : ObservableObject
             RefreshStagedItems();
             SelectedMaterial = null;
             IsConfirmationOpen = false;
+            IsDeleteConfirmation = false;
             StatusText = "已从材料桶移除";
         });
+    }
+
+    public void RequestRemove(StagedMaterial material)
+    {
+        SelectMaterial(material);
+        IsDeleteConfirmation = true;
+        IsConfirmationOpen = true;
+    }
+
+    public void CancelDelete()
+    {
+        IsDeleteConfirmation = false;
+        IsConfirmationOpen = false;
     }
 
     public void SelectMaterial(StagedMaterial? material)
     {
         if (material is null) return;
         SelectedMaterial = StagedItems.SingleOrDefault(item => item.Id == material.Id) ?? material;
+        IsDeleteConfirmation = false;
         IsConfirmationOpen = material.Status != StagedMaterialStatus.Capturing;
     }
 
@@ -232,10 +249,16 @@ public sealed partial class MainViewModel : ObservableObject
     partial void OnDraftTextChanged(string value)
     {
         if (restoringDraft) return;
-        draftSaveCancellation?.Cancel();
-        draftSaveCancellation?.Dispose();
+        CancelPendingDraftSave();
         draftSaveCancellation = new CancellationTokenSource();
         _ = SaveDraftAfterDelayAsync(value, draftSaveCancellation.Token);
+    }
+
+    private void CancelPendingDraftSave()
+    {
+        draftSaveCancellation?.Cancel();
+        draftSaveCancellation?.Dispose();
+        draftSaveCancellation = null;
     }
 
     private async Task SaveDraftAfterDelayAsync(string value, CancellationToken cancellationToken)

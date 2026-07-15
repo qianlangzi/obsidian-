@@ -1,31 +1,362 @@
-<Window x:Class="InboxDock.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:icons="http://metro.mahapps.com/winfx/xaml/iconpacks" Width="340" Height="480" WindowStyle="None" AllowsTransparency="True" Background="Transparent" ShowInTaskbar="False" Topmost="True" ResizeMode="NoResize" AllowDrop="True" Drop="OnDrop" DragEnter="OnDragEnter" DragLeave="OnDragLeave">
- <Window.Resources>
-  <Style TargetType="Button"><Setter Property="BorderThickness" Value="0"/><Setter Property="Background" Value="Transparent"/><Setter Property="Cursor" Value="Hand"/><Setter Property="Padding" Value="10,7"/></Style>
-  <Style x:Key="Primary" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Background" Value="{StaticResource Accent}"/><Setter Property="Foreground" Value="White"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
-  <Style TargetType="TextBox"><Setter Property="Padding" Value="10"/><Setter Property="BorderBrush" Value="{StaticResource Line}"/><Setter Property="Background" Value="White"/><Setter Property="TextWrapping" Value="Wrap"/></Style>
-  <Style TargetType="TabItem"><Setter Property="Foreground" Value="{StaticResource Muted}"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabItem"><Border x:Name="TabSurface" Padding="16,7" Margin="0,0,6,0" CornerRadius="4" Background="Transparent"><ContentPresenter ContentSource="Header" HorizontalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsSelected" Value="True"><Setter TargetName="TabSurface" Property="Background" Value="{StaticResource AccentSoft}"/><Setter Property="Foreground" Value="{StaticResource Accent}"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>
- </Window.Resources>
- <Border Background="{StaticResource Paper}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8">
-  <Grid><Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition/><RowDefinition Height="42"/></Grid.RowDefinitions>
-   <Grid Background="{StaticResource Surface}" MouseLeftButtonDown="OnHeaderDrag"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="44"/><ColumnDefinition Width="44"/><ColumnDefinition Width="44"/></Grid.ColumnDefinitions>
-    <StackPanel Orientation="Horizontal" Margin="14,0" VerticalAlignment="Center"><icons:PackIconLucide Kind="Inbox" Width="20" Foreground="{StaticResource Accent}"/><TextBlock Text="InboxDock" Margin="8,0" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/></StackPanel>
-    <Button Grid.Column="1" Click="OnPin" ToolTip="在最前"><icons:PackIconLucide Kind="Pin" Width="18"/></Button>
-    <Button Grid.Column="2" Click="OnCollapse" ToolTip="收起"><icons:PackIconLucide Kind="PanelRightClose" Width="18"/></Button>
-    <Button Grid.Column="3" Click="OnSettings" ToolTip="设置 Vault"><icons:PackIconLucide Kind="Settings" Width="18"/></Button>
-   </Grid>
-   <TabControl Grid.Row="1" Margin="12" BorderThickness="0" Background="Transparent">
-    <TabItem Header="收集"><Grid Margin="0,12,0,0"><Grid.RowDefinitions><RowDefinition Height="108"/><RowDefinition Height="10"/><RowDefinition/><RowDefinition Height="44"/></Grid.RowDefinitions>
-     <Border x:Name="DropZone" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Background="White"><StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"><icons:PackIconLucide Kind="FileDown" Width="28" Foreground="{StaticResource Accent}"/><TextBlock Text="把文件拖到这里" FontWeight="SemiBold" Margin="0,8,0,2"/><TextBlock Text="支持多个文件" Foreground="{StaticResource Muted}" FontSize="12"/></StackPanel></Border>
-     <TextBox Grid.Row="2" Text="{Binding CaptureText,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
-     <Button Grid.Row="3" Style="{StaticResource Primary}" Click="OnCaptureText" Margin="0,8,0,0" IsEnabled="{Binding HasVault}"><TextBlock Text="收进 Inbox"/></Button>
-    </Grid></TabItem>
-    <TabItem Header="今日"><Grid Margin="0,12,0,0"><Grid.RowDefinitions><RowDefinition Height="36"/><RowDefinition Height="10"/><RowDefinition/><RowDefinition Height="44"/></Grid.RowDefinitions>
-     <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" DisplayMemberPath="Label" Padding="8"/>
-     <TextBox Grid.Row="2" Text="{Binding DailyText,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
-     <Button Grid.Row="3" Style="{StaticResource Primary}" Click="OnAppendDaily" Margin="0,8,0,0" IsEnabled="{Binding HasVault}"><TextBlock Text="追加到 Daily"/></Button>
-    </Grid></TabItem>
-   </TabControl>
-   <Grid Grid.Row="2" Background="White"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="44"/></Grid.ColumnDefinitions><TextBlock Text="{Binding StatusText}" Foreground="{StaticResource Muted}" FontSize="12" TextTrimming="CharacterEllipsis" Margin="12,0" VerticalAlignment="Center"/><Button Grid.Column="1" Click="OnUndo" IsEnabled="{Binding CanUndo}" ToolTip="撤销上一次"><icons:PackIconLucide Kind="Undo2" Width="17"/></Button></Grid>
+<Window x:Class="InboxDock.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:icons="http://metro.mahapps.com/winfx/xaml/iconpacks"
+        xmlns:converters="clr-namespace:InboxDock.App.Converters"
+        Title="InboxDock"
+        Width="304"
+        Height="408"
+        MinWidth="52"
+        MinHeight="52"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True"
+        ResizeMode="NoResize"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        SizeChanged="OnWindowSizeChanged">
+  <Window.Resources>
+    <converters:MaterialKindIconConverter x:Key="KindIcon" />
+    <converters:MaterialSummaryConverter x:Key="MaterialSummary" />
+    <converters:MaterialStatusTextConverter x:Key="StatusText" />
+    <converters:MaterialStatusBrushConverter x:Key="StatusBrush" />
+
+    <Style x:Key="MaterialCard" TargetType="Border">
+      <Setter Property="Background" Value="#FAFBF8" />
+      <Setter Property="BorderBrush" Value="{StaticResource Line}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="9" />
+      <Setter Property="Padding" Value="9" />
+      <Setter Property="Margin" Value="0,0,0,7" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter Property="BorderBrush" Value="#8526734D" />
+          <Setter Property="Background" Value="#F7FBF8" />
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+  </Window.Resources>
+
+  <Grid x:Name="ShellHost">
+    <Border Margin="7"
+            CornerRadius="17"
+            Background="#280E1B13"
+            IsHitTestVisible="False" />
+
+    <Border x:Name="ExpandedShell"
+            Visibility="Visible"
+            Background="{StaticResource Paper}"
+            BorderBrush="#BBC6CEC7"
+            BorderThickness="1"
+            CornerRadius="14">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="50" />
+          <RowDefinition />
+          <RowDefinition Height="36" />
+        </Grid.RowDefinitions>
+
+        <Grid Background="#CFFBFAF6" MouseLeftButtonDown="OnExpandedHeaderDrag">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition />
+            <ColumnDefinition Width="34" />
+            <ColumnDefinition Width="34" />
+            <ColumnDefinition Width="34" />
+          </Grid.ColumnDefinitions>
+          <StackPanel Margin="14,0,0,0" Orientation="Horizontal" VerticalAlignment="Center">
+            <Border Width="28" Height="28" CornerRadius="9" Background="{StaticResource Accent}">
+              <icons:PackIconLucide Kind="Inbox" Width="15" Height="15" Foreground="White"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <StackPanel Margin="9,0,0,0" VerticalAlignment="Center">
+              <TextBlock Text="InboxDock" FontFamily="Segoe UI Variable Display" FontSize="13.5" FontWeight="SemiBold" />
+              <TextBlock Text="桌面材料桶" Margin="0,-1,0,0" FontSize="9.5" Foreground="{StaticResource Faint}" />
+            </StackPanel>
+          </StackPanel>
+          <Button Grid.Column="1" Style="{StaticResource IconButton}" Click="OnPin" ToolTip="保持在最前">
+            <icons:PackIconLucide x:Name="PinIcon" Kind="Pin" Width="15" />
+          </Button>
+          <Button Grid.Column="2" Style="{StaticResource IconButton}" Click="OnCollapse" ToolTip="收起到屏幕边缘">
+            <icons:PackIconLucide Kind="Minimize2" Width="15" />
+          </Button>
+          <Button Grid.Column="3" Style="{StaticResource IconButton}" Click="OnSettings" ToolTip="选择 Obsidian Vault">
+            <icons:PackIconLucide Kind="Settings" Width="15" />
+          </Button>
+        </Grid>
+
+        <TabControl Grid.Row="1"
+                    Margin="11,4,11,5"
+                    BorderThickness="0"
+                    Background="Transparent">
+          <TabItem Header="收集">
+            <Grid Margin="0,7,0,0">
+              <Grid.RowDefinitions>
+                <RowDefinition Height="47" />
+                <RowDefinition Height="7" />
+                <RowDefinition />
+              </Grid.RowDefinitions>
+
+              <Border x:Name="DropZone"
+                      AllowDrop="True"
+                      Drop="OnDrop"
+                      DragEnter="OnDragEnter"
+                      DragLeave="OnDragLeave"
+                      CornerRadius="10"
+                      Background="{StaticResource PaperRaised}"
+                      BorderBrush="{StaticResource LineStrong}"
+                      BorderThickness="1">
+                <Grid Margin="11,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="32" />
+                    <ColumnDefinition />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <Border Width="27" Height="27" CornerRadius="8" Background="{StaticResource AccentSoft}">
+                    <icons:PackIconLucide Kind="FileDown" Width="15" Foreground="{StaticResource Accent}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                  <StackPanel Grid.Column="1" Margin="7,0" VerticalAlignment="Center">
+                    <TextBlock Text="拖入文件，或粘贴链接" FontSize="11.5" FontWeight="SemiBold" />
+                    <TextBlock Text="加入后会先问你，再收进 Inbox" FontSize="9.5" Foreground="{StaticResource Muted}" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="2" Text="暂存" FontSize="9.5" Foreground="{StaticResource Accent}"
+                             VerticalAlignment="Center" />
+                </Grid>
+              </Border>
+
+              <Border Grid.Row="2"
+                      CornerRadius="10"
+                      Background="White"
+                      BorderBrush="{StaticResource Line}"
+                      BorderThickness="1">
+                <Grid>
+                  <Grid.RowDefinitions>
+                    <RowDefinition />
+                    <RowDefinition Height="68" />
+                  </Grid.RowDefinitions>
+
+                  <Grid Margin="8,8,8,3">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                      <ItemsControl ItemsSource="{Binding StagedItems}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <Border Style="{StaticResource MaterialCard}"
+                                    Tag="{Binding}"
+                                    Loaded="OnMaterialCardLoaded"
+                                    MouseLeftButtonUp="OnMaterialCardClick">
+                              <Grid>
+                                <Grid.ColumnDefinitions>
+                                  <ColumnDefinition Width="34" />
+                                  <ColumnDefinition />
+                                  <ColumnDefinition Width="27" />
+                                </Grid.ColumnDefinitions>
+                                <Border Width="28" Height="28" CornerRadius="8" Background="{StaticResource AccentSoft}"
+                                        VerticalAlignment="Top">
+                                  <icons:PackIconLucide Kind="{Binding Kind, Converter={StaticResource KindIcon}}"
+                                                        Width="14" Foreground="{StaticResource Accent}"
+                                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="7,-1,5,0">
+                                  <TextBlock Text="{Binding Title}" FontSize="11" FontWeight="SemiBold"
+                                             TextTrimming="CharacterEllipsis" />
+                                  <TextBlock Text="{Binding Converter={StaticResource MaterialSummary}}"
+                                             Margin="0,2,0,0" FontSize="9.5" Foreground="{StaticResource Muted}" />
+                                  <StackPanel Margin="0,4,0,0" Orientation="Horizontal">
+                                    <Ellipse Width="5" Height="5" Margin="0,0,5,0"
+                                             Fill="{Binding Status, Converter={StaticResource StatusBrush}}" />
+                                    <TextBlock Text="{Binding Status, Converter={StaticResource StatusText}}"
+                                               FontSize="9" Foreground="{Binding Status, Converter={StaticResource StatusBrush}}" />
+                                  </StackPanel>
+                                </StackPanel>
+                                <Button Grid.Column="2" Width="25" Height="25" Padding="5" Tag="{Binding}"
+                                        Click="OnRequestRemove" ToolTip="移除暂存材料">
+                                  <icons:PackIconLucide Kind="Trash2" Width="13" Foreground="{StaticResource Muted}" />
+                                </Button>
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </ScrollViewer>
+
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                IsHitTestVisible="False">
+                      <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                          <Setter Property="Visibility" Value="Visible" />
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasStagedItems}" Value="True">
+                              <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </StackPanel.Style>
+                      <icons:PackIconLucide Kind="Archive" Width="24" Foreground="#8F98A099" />
+                      <TextBlock Text="材料桶还是空的" Margin="0,7,0,2" FontSize="11" FontWeight="SemiBold"
+                                 Foreground="{StaticResource Muted}" />
+                      <TextBlock Text="点“先暂存”的内容会一直留在这里" FontSize="9.5" Foreground="{StaticResource Faint}" />
+                    </StackPanel>
+                  </Grid>
+
+                  <Grid Grid.Row="1" Margin="8,3,8,8">
+                    <TextBox x:Name="DraftEditor"
+                             Text="{Binding DraftText, UpdateSourceTrigger=PropertyChanged}"
+                             AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Auto"
+                             PreviewKeyDown="OnDraftPreviewKeyDown" />
+                    <TextBlock Margin="11,9,0,0" VerticalAlignment="Top" IsHitTestVisible="False"
+                               Text="在这里写文字…" FontSize="10.5" Foreground="{StaticResource Faint}">
+                      <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                          <Setter Property="Visibility" Value="Collapsed" />
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding DraftText}" Value="">
+                              <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </TextBlock.Style>
+                    </TextBlock>
+                    <Border Margin="0,0,8,7" Padding="6,2" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                            CornerRadius="5" Background="{StaticResource Paper}">
+                      <TextBlock Text="Ctrl + Enter" FontFamily="Segoe UI Variable Text" FontSize="8.5"
+                                 Foreground="{StaticResource Muted}" />
+                    </Border>
+                  </Grid>
+
+                  <Grid x:Name="ConfirmationSheet"
+                        Grid.RowSpan="2"
+                        Panel.ZIndex="10"
+                        Margin="7"
+                        VerticalAlignment="Bottom"
+                        Visibility="{Binding IsConfirmationOpen, Converter={StaticResource BoolToVisibility}}"
+                        IsVisibleChanged="OnConfirmationVisibilityChanged">
+                    <Border CornerRadius="12"
+                            Background="#FCFFFDFC"
+                            BorderBrush="#B8C6CEC7"
+                            BorderThickness="1"
+                            Padding="12">
+                      <Border.Effect>
+                        <DropShadowEffect BlurRadius="17" ShadowDepth="4" Opacity="0.16" Color="#26352B" />
+                      </Border.Effect>
+                      <Grid>
+                        <Grid x:Name="CaptureConfirmation">
+                          <Grid.Style>
+                            <Style TargetType="Grid">
+                              <Setter Property="Visibility" Value="Visible" />
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsDeleteConfirmation}" Value="True">
+                                  <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </Grid.Style>
+                          <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="34" />
+                          </Grid.RowDefinitions>
+                          <TextBlock Text="要收进 Inbox 吗？" FontSize="12" FontWeight="SemiBold" />
+                          <TextBlock Grid.Row="1" Margin="0,3,0,9" FontSize="10" Foreground="{StaticResource Muted}"
+                                     Text="{Binding SelectedMaterial.Title}" TextTrimming="CharacterEllipsis" />
+                          <Grid Grid.Row="2">
+                            <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="8" /><ColumnDefinition /></Grid.ColumnDefinitions>
+                            <Button Style="{StaticResource SecondaryButton}" Click="OnDeferSelected" Content="先暂存" />
+                            <Button Grid.Column="2" Style="{StaticResource PrimaryButton}" Click="OnConfirmSelected"
+                                    IsEnabled="{Binding HasVault}" Content="收进 Inbox" />
+                          </Grid>
+                        </Grid>
+
+                        <Grid x:Name="DeleteConfirmation">
+                          <Grid.Style>
+                            <Style TargetType="Grid">
+                              <Setter Property="Visibility" Value="Collapsed" />
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsDeleteConfirmation}" Value="True">
+                                  <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </Grid.Style>
+                          <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="34" />
+                          </Grid.RowDefinitions>
+                          <TextBlock Text="移出材料桶？" FontSize="12" FontWeight="SemiBold" />
+                          <TextBlock Grid.Row="1" Margin="0,3,0,9" FontSize="10" Foreground="{StaticResource Muted}"
+                                     Text="只删除 InboxDock 的暂存副本，原文件不会动。" TextWrapping="Wrap" />
+                          <Grid Grid.Row="2">
+                            <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="8" /><ColumnDefinition /></Grid.ColumnDefinitions>
+                            <Button Style="{StaticResource SecondaryButton}" Click="OnCancelDelete" Content="取消" />
+                            <Button Grid.Column="2" Style="{StaticResource DangerButton}" Click="OnRemoveSelected" Content="确认移除" />
+                          </Grid>
+                        </Grid>
+                      </Grid>
+                    </Border>
+                  </Grid>
+                </Grid>
+              </Border>
+            </Grid>
+          </TabItem>
+
+          <TabItem Header="今日">
+            <Grid Margin="0,7,0,0">
+              <Grid.RowDefinitions>
+                <RowDefinition Height="38" />
+                <RowDefinition Height="7" />
+                <RowDefinition />
+                <RowDefinition Height="42" />
+              </Grid.RowDefinitions>
+              <ComboBox ItemsSource="{Binding Categories}"
+                        SelectedItem="{Binding SelectedCategory}"
+                        DisplayMemberPath="Label" />
+              <TextBox Grid.Row="2"
+                       Text="{Binding DailyText, UpdateSourceTrigger=PropertyChanged}"
+                       AcceptsReturn="True"
+                       VerticalScrollBarVisibility="Auto" />
+              <Button Grid.Row="3" Margin="0,7,0,0" Style="{StaticResource PrimaryButton}"
+                      Click="OnAppendDaily" IsEnabled="{Binding HasVault}" Content="追加到今天的 Daily" />
+            </Grid>
+          </TabItem>
+        </TabControl>
+
+        <Grid Grid.Row="2" Background="#D9FBFAF6">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition />
+            <ColumnDefinition Width="33" />
+          </Grid.ColumnDefinitions>
+          <Ellipse Width="5" Height="5" Margin="12,0,0,0" HorizontalAlignment="Left"
+                   Fill="{StaticResource Accent}" />
+          <TextBlock Text="{Binding StatusText}" Margin="23,0,4,0" VerticalAlignment="Center"
+                     FontSize="9.5" Foreground="{StaticResource Muted}" TextTrimming="CharacterEllipsis" />
+          <Button Grid.Column="1" Style="{StaticResource IconButton}" Click="OnUndo"
+                  IsEnabled="{Binding CanUndo}" ToolTip="撤销上一次收集">
+            <icons:PackIconLucide Kind="Undo2" Width="14" />
+          </Button>
+        </Grid>
+      </Grid>
+    </Border>
+
+    <Border x:Name="CollapsedShell"
+            Visibility="Collapsed"
+            CornerRadius="14"
+            Background="{StaticResource PaperRaised}"
+            BorderBrush="#B7C6CEC7"
+            BorderThickness="1"
+            Cursor="Hand"
+            MouseLeftButtonDown="OnCollapsedPointerDown">
+      <Grid>
+        <Border Width="34" Height="34" CornerRadius="11" Background="{StaticResource Accent}">
+          <icons:PackIconLucide Kind="Inbox" Width="18" Height="18" Foreground="White"
+                                HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <Border Width="16" Height="3" Margin="0,0,0,5" CornerRadius="2" Background="#6B26734D"
+                VerticalAlignment="Bottom" />
+      </Grid>
+    </Border>
   </Grid>
- </Border>
 </Window>
