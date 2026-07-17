@@ -41,9 +41,17 @@ public sealed class MaterialStagingService
         IReadOnlyList<string> sourcePaths,
         CancellationToken cancellationToken = default)
     {
-        var material = await files.StageFilesAsync(sourcePaths, cancellationToken);
-        await LoadAsync(cancellationToken);
-        return Snapshot.Items.Single(item => item.Id == material.Id);
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            var result = await files.StageFilesAsync(sourcePaths, Snapshot, cancellationToken);
+            Snapshot = result.Snapshot;
+            return result.Material;
+        }
+        finally
+        {
+            gate.Release();
+        }
     }
 
     public async Task<StagedMaterial?> StagePastedLinkAsync(

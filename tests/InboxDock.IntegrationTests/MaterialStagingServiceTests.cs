@@ -106,6 +106,22 @@ public sealed class MaterialStagingServiceTests : IDisposable
         Assert.True(File.Exists(Assert.Single(restored.Files).StagedPath));
     }
 
+    [Fact]
+    public async Task StageFilesAsync_SequentialGroups_UpdateCurrentSnapshot()
+    {
+        var first = await CreateFileAsync("first.txt", "one");
+        var second = await CreateFileAsync("second.txt", "two");
+        var service = CreateService();
+        await service.LoadAsync();
+
+        var firstMaterial = await service.StageFilesAsync([first]);
+        var secondMaterial = await service.StageFilesAsync([second]);
+
+        Assert.Equal(2, service.Snapshot.Items.Count);
+        Assert.Contains(service.Snapshot.Items, item => item.Id == firstMaterial.Id);
+        Assert.Contains(service.Snapshot.Items, item => item.Id == secondMaterial.Id);
+    }
+
     [Theory]
     [InlineData("https://example.com/path", true)]
     [InlineData("http://example.com", true)]
