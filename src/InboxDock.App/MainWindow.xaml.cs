@@ -266,9 +266,10 @@ public partial class MainWindow : Window
 
     private async void OnDrop(object sender, System.Windows.DragEventArgs e)
     {
-        ResetDropZone();
+        ResetDropOverlay();
         if (e.Data.GetData(System.Windows.DataFormats.FileDrop) is string[] files)
         {
+            e.Handled = true;
             await vm.StageFilesAsync(files);
         }
     }
@@ -276,19 +277,14 @@ public partial class MainWindow : Window
     private void OnDragEnter(object sender, System.Windows.DragEventArgs e)
     {
         if (!e.Data.GetDataPresent(System.Windows.DataFormats.FileDrop)) return;
-        DropZone.Background = (System.Windows.Media.Brush)FindResource("AccentSoft");
-        DropZone.BorderBrush = (System.Windows.Media.Brush)FindResource("Accent");
+        DropOverlay.Visibility = Visibility.Visible;
         e.Effects = System.Windows.DragDropEffects.Copy;
         e.Handled = true;
     }
 
-    private void OnDragLeave(object sender, System.Windows.DragEventArgs e) => ResetDropZone();
+    private void OnDragLeave(object sender, System.Windows.DragEventArgs e) => ResetDropOverlay();
 
-    private void ResetDropZone()
-    {
-        DropZone.Background = (System.Windows.Media.Brush)FindResource("PaperRaised");
-        DropZone.BorderBrush = (System.Windows.Media.Brush)FindResource("LineStrong");
-    }
+    private void ResetDropOverlay() => DropOverlay.Visibility = Visibility.Collapsed;
 
     private async void OnDraftPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {

@@ -122,6 +122,22 @@ public sealed class MaterialStagingServiceTests : IDisposable
         Assert.Contains(service.Snapshot.Items, item => item.Id == secondMaterial.Id);
     }
 
+    [Fact]
+    public async Task UpdateNoteAsync_PersistsTrimmedFileGroupNote()
+    {
+        var source = await CreateFileAsync("noted.pdf", "content");
+        var service = CreateService();
+        await service.LoadAsync();
+        var material = await service.StageFilesAsync([source]);
+
+        var updated = await service.UpdateNoteAsync(material.Id, "  一起阅读  ");
+        var restarted = CreateService();
+        await restarted.LoadAsync();
+
+        Assert.Equal("一起阅读", updated.Note);
+        Assert.Equal("一起阅读", Assert.Single(restarted.Snapshot.Items).Note);
+    }
+
     [Theory]
     [InlineData("https://example.com/path", true)]
     [InlineData("http://example.com", true)]

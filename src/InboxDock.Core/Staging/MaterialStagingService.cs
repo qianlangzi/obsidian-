@@ -91,6 +91,20 @@ public sealed class MaterialStagingService
         }
     }
 
+    public Task<StagedMaterial> UpdateNoteAsync(
+        Guid id,
+        string? note,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+        return UpdateAsync(
+            id,
+            item => item.Kind == StagedMaterialKind.Files
+                ? item with { Note = normalized }
+                : throw new InvalidOperationException("只有文件材料可以添加备注。"),
+            cancellationToken);
+    }
+
     public async Task<StagedMaterial> UpdateAsync(
         Guid id,
         Func<StagedMaterial, StagedMaterial> update,
