@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using InboxDock.Core.Capture;
 using InboxDock.Core.Configuration;
@@ -105,6 +106,37 @@ public sealed partial class MainViewModel : ObservableObject
             StatusText = "链接已暂存，请确认";
         });
         return recognized;
+    }
+
+    public async Task StageClipboardImageAsync(BitmapSource bitmap)
+    {
+        ArgumentNullException.ThrowIfNull(bitmap);
+        var clipboardDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "InboxDock",
+            "Clipboard");
+        Directory.CreateDirectory(clipboardDirectory);
+        var path = Path.Combine(
+            clipboardDirectory,
+            $"clipboard-{DateTimeOffset.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.png");
+
+        try
+        {
+            var frame = BitmapFrame.Create(bitmap);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(frame);
+            await using (var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                encoder.Save(stream);
+            }
+
+            await StageFilesAsync([path]);
+            StatusText = "剪贴板图片已暂存，请确认";
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
     }
 
     public async Task SubmitDraftAsync()

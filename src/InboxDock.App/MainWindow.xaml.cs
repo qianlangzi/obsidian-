@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using InboxDock.App.Clipboard;
 using InboxDock.App.ViewModels;
 using InboxDock.App.Windowing;
 using InboxDock.Core.Staging;
@@ -299,15 +300,41 @@ public partial class MainWindow : Window
         }
 
         if (e.Key != Key.V || !Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) return;
-        if (!System.Windows.Clipboard.ContainsText()) return;
-        var text = System.Windows.Clipboard.GetText();
-        e.Handled = true;
-        if (await vm.StagePastedLinkAsync(text)) return;
 
-        var start = DraftEditor.SelectionStart;
-        var existing = DraftEditor.Text;
-        DraftEditor.Text = existing.Remove(start, DraftEditor.SelectionLength).Insert(start, text);
-        DraftEditor.SelectionStart = start + text.Length;
+        ClipboardMaterial material;
+        try
+        {
+            material = ClipboardMaterialReader.Read();
+        }
+        catch (InvalidOperationException ex)
+        {
+            e.Handled = true;
+            vm.StatusText = ex.Message;
+            return;
+        }
+
+        switch (material)
+        {
+            case ClipboardFiles files:
+                e.Handled = true;
+                await vm.StageFilesAsync(files.Paths);
+                break;
+            case ClipboardImage image:
+                e.Handled = true;
+                await vm.StageClipboardImageAsync(image.Bitmap);
+                break;
+            case ClipboardLink link:
+                e.Handled = true;
+                await vm.StagePastedLinkAsync(link.Value);
+                break;
+            case ClipboardText text:
+                e.Handled = true;
+                var start = DraftEditor.SelectionStart;
+                var existing = DraftEditor.Text;
+                DraftEditor.Text = existing.Remove(start, DraftEditor.SelectionLength).Insert(start, text.Value);
+                DraftEditor.SelectionStart = start + text.Value.Length;
+                break;
+        }
     }
 
     private void OnMaterialCardClick(object sender, MouseButtonEventArgs e)
