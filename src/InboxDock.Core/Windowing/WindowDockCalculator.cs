@@ -43,4 +43,35 @@ public static class WindowDockCalculator
             _ => throw new ArgumentOutOfRangeException(nameof(edge)),
         };
     }
+
+    public static WindowRect PeekHandleRect(
+        DockEdge edge,
+        WindowRect current,
+        WindowRect workArea,
+        double longSide,
+        double shortSide)
+    {
+        if (longSide <= 0) throw new ArgumentOutOfRangeException(nameof(longSide));
+        if (shortSide <= 0) throw new ArgumentOutOfRangeException(nameof(shortSide));
+
+        var centerX = current.Left + (current.Width / 2);
+        var centerY = current.Top + (current.Height / 2);
+
+        if (edge is DockEdge.Left or DockEdge.Right)
+        {
+            var top = Math.Clamp(
+                centerY - (longSide / 2),
+                workArea.Top,
+                Math.Max(workArea.Top, workArea.Bottom - longSide));
+            var left = edge == DockEdge.Left ? workArea.Left : workArea.Right - shortSide;
+            return new WindowRect(left, top, shortSide, longSide);
+        }
+
+        var horizontal = Math.Clamp(
+            centerX - (longSide / 2),
+            workArea.Left,
+            Math.Max(workArea.Left, workArea.Right - longSide));
+        var vertical = edge == DockEdge.Top ? workArea.Top : workArea.Bottom - shortSide;
+        return new WindowRect(horizontal, vertical, longSide, shortSide);
+    }
 }
