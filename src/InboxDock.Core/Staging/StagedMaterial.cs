@@ -29,4 +29,5 @@ public sealed record StagedMaterial(
     StagedMaterialStatus Status,
     IReadOnlyList<StagedFile> Files,
     string? Content = null,
-    string? LastError = null);
+    string? LastError = null,
+    string? Note = null);

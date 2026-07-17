@@ -35,4 +35,41 @@ public sealed class InboxMarkdownTests
         Assert.Contains("[[05 Resources/Attachments/2026-07-13/报告.pdf]]", markdown);
         Assert.Contains("240 B", markdown);
     }
+
+    [Fact]
+    public void ForFiles_WithNote_WritesNoteBeforeAttachments()
+    {
+        var files = new[]
+        {
+            new CapturedAttachment("报告.pdf", "05 Resources/Attachments/报告.pdf", 42),
+        };
+
+        var markdown = InboxMarkdown.ForFiles(
+            "材料 1 项",
+            files,
+            Guid.NewGuid(),
+            DateTimeOffset.Now,
+            "先阅读第二章");
+
+        var normalized = markdown.Replace("\r\n", "\n");
+        Assert.Contains("## 备注\n\n先阅读第二章\n\n## 附件", normalized);
+    }
+
+    [Fact]
+    public void ForFiles_WithoutNote_DoesNotWriteEmptyNoteHeading()
+    {
+        var files = new[]
+        {
+            new CapturedAttachment("报告.pdf", "05 Resources/Attachments/报告.pdf", 42),
+        };
+
+        var markdown = InboxMarkdown.ForFiles(
+            "材料 1 项",
+            files,
+            Guid.NewGuid(),
+            DateTimeOffset.Now,
+            null);
+
+        Assert.DoesNotContain("## 备注", markdown);
+    }
 }

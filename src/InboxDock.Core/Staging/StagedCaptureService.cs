@@ -32,6 +32,7 @@ public sealed class StagedCaptureService
             {
                 StagedMaterialKind.Files => await inbox.CaptureFilesAsync(
                     material.Files.Select(file => file.StagedPath).ToArray(),
+                    material.Note,
                     cancellationToken),
                 StagedMaterialKind.Link or StagedMaterialKind.Text => await inbox.CaptureTextAsync(
                     material.Content ?? throw new InvalidDataException("文字材料缺少内容。"),
