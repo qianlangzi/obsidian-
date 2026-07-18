@@ -11,8 +11,9 @@ public sealed class FileStagingService
         this.clock = clock ?? (() => DateTimeOffset.Now);
     }
 
-    public async Task<StagedMaterial> StageFilesAsync(
+    public async Task<(StagedMaterial Material, StagingSnapshot Snapshot)> StageFilesAsync(
         IReadOnlyList<string> sourcePaths,
+        StagingSnapshot snapshot,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(sourcePaths);
@@ -24,9 +25,6 @@ public sealed class FileStagingService
             if (Directory.Exists(source)) throw new ArgumentException("暂不支持文件夹，请拖入具体文件。", nameof(sourcePaths));
             if (!File.Exists(source)) throw new FileNotFoundException("要暂存的文件不存在。", source);
         }
-
-        var load = await store.LoadAsync(cancellationToken);
-        if (load.Error is not null) throw new IOException(load.Error);
 
         var id = Guid.NewGuid();
         var materialDirectory = Path.Combine(store.FilesDirectory, id.ToString("N"));
@@ -65,10 +63,9 @@ public sealed class FileStagingService
                 clock(),
                 StagedMaterialStatus.AwaitingConfirmation,
                 stagedFiles);
-            await store.SaveAsync(
-                load.Snapshot with { Items = [.. load.Snapshot.Items, material] },
-                cancellationToken);
-            return material;
+            var updated = snapshot with { Items = [.. snapshot.Items, material] };
+            await store.SaveAsync(updated, cancellationToken);
+            return (material, updated);
         }
         catch
         {

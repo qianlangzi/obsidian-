@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using InboxDock.Core.Capture;
 using InboxDock.Core.Configuration;
@@ -10,7 +11,7 @@ using InboxDock.Core.Vault;
 
 namespace InboxDock.App.ViewModels;
 
-public sealed partial class MainViewModel : ObservableObject
+public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
     private readonly SettingsStore settingsStore;
     private readonly MaterialStagingService staging;
@@ -19,7 +20,9 @@ public sealed partial class MainViewModel : ObservableObject
     private DailyCaptureService? daily;
     private CaptureResult? last;
     private CancellationTokenSource? draftSaveCancellation;
+    private CancellationTokenSource? noteSaveCancellation;
     private bool restoringDraft;
+    private bool restoringNote;
 
     [ObservableProperty] private string dailyText = string.Empty;
     [ObservableProperty] private string draftText = string.Empty;
@@ -31,6 +34,7 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool isDeleteConfirmation;
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private StagedMaterial? selectedMaterial;
+    [ObservableProperty] private string selectedNote = string.Empty;
     [ObservableProperty] private string vaultPath = string.Empty;
 
     public MainViewModel()
@@ -107,6 +111,42 @@ public sealed partial class MainViewModel : ObservableObject
         return recognized;
     }
 
+    public async Task StageClipboardImageAsync(BitmapSource bitmap)
+    {
+        ArgumentNullException.ThrowIfNull(bitmap);
+        var clipboardDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "InboxDock",
+            "Clipboard");
+        Directory.CreateDirectory(clipboardDirectory);
+        var path = Path.Combine(
+            clipboardDirectory,
+            $"clipboard-{DateTimeOffset.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.png");
+
+        try
+        {
+            var frame = BitmapFrame.Create(bitmap);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(frame);
+            await using (var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                encoder.Save(stream);
+            }
+
+            await Run(async () =>
+            {
+                var material = await staging.StageFilesAsync([path]);
+                RefreshStagedItems();
+                SelectMaterial(material);
+                StatusText = "剪贴板图片已暂存，请确认";
+            });
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
     public async Task SubmitDraftAsync()
     {
         if (string.IsNullOrWhiteSpace(DraftText)) return;
@@ -135,6 +175,7 @@ public sealed partial class MainViewModel : ObservableObject
         var id = SelectedMaterial.Id;
         await Run(async () =>
         {
+            await FlushSelectedNoteAsync();
             IsBusy = true;
             IsConfirmationOpen = false;
             last = await stagedCapture.ConfirmAsync(id);
@@ -156,6 +197,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         await Run(async () =>
         {
+            await FlushSelectedNoteAsync();
             var deferred = stagedCapture is not null
                 ? await stagedCapture.DeferAsync(SelectedMaterial.Id)
                 : await staging.UpdateAsync(
@@ -213,6 +255,9 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (material is null) return;
         SelectedMaterial = StagedItems.SingleOrDefault(item => item.Id == material.Id) ?? material;
+        restoringNote = true;
+        SelectedNote = SelectedMaterial.Note ?? string.Empty;
+        restoringNote = false;
         IsDeleteConfirmation = false;
         IsConfirmationOpen = material.Status != StagedMaterialStatus.Capturing;
     }
@@ -254,11 +299,26 @@ public sealed partial class MainViewModel : ObservableObject
         _ = SaveDraftAfterDelayAsync(value, draftSaveCancellation.Token);
     }
 
+    partial void OnSelectedNoteChanged(string value)
+    {
+        if (restoringNote || SelectedMaterial?.Kind != StagedMaterialKind.Files) return;
+        CancelPendingNoteSave();
+        noteSaveCancellation = new CancellationTokenSource();
+        _ = SaveNoteAfterDelayAsync(SelectedMaterial.Id, value, noteSaveCancellation.Token);
+    }
+
     private void CancelPendingDraftSave()
     {
         draftSaveCancellation?.Cancel();
         draftSaveCancellation?.Dispose();
         draftSaveCancellation = null;
+    }
+
+    private void CancelPendingNoteSave()
+    {
+        noteSaveCancellation?.Cancel();
+        noteSaveCancellation?.Dispose();
+        noteSaveCancellation = null;
     }
 
     private async Task SaveDraftAfterDelayAsync(string value, CancellationToken cancellationToken)
@@ -277,6 +337,32 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    private async Task SaveNoteAfterDelayAsync(Guid id, string value, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(300, cancellationToken);
+            var updated = await staging.UpdateNoteAsync(id, value, cancellationToken);
+            ReplaceStagedItem(updated);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"备注保存失败：{ex.Message}";
+        }
+    }
+
+    private async Task FlushSelectedNoteAsync()
+    {
+        CancelPendingNoteSave();
+        if (SelectedMaterial?.Kind != StagedMaterialKind.Files) return;
+        var updated = await staging.UpdateNoteAsync(SelectedMaterial.Id, SelectedNote);
+        ReplaceStagedItem(updated);
+        SelectedMaterial = updated;
+    }
+
     private void Configure(AppSettings settings)
     {
         var layout = new VaultLayout(settings);
@@ -291,10 +377,24 @@ public sealed partial class MainViewModel : ObservableObject
     private void RefreshStagedItems()
     {
         var selectedId = SelectedMaterial?.Id;
-        StagedItems.Clear();
-        foreach (var item in staging.Snapshot.Items.OrderByDescending(item => item.CreatedAt))
+        var desired = staging.Snapshot.Items.OrderByDescending(item => item.CreatedAt).ToArray();
+        for (var index = StagedItems.Count - 1; index >= 0; index--)
         {
-            StagedItems.Add(item);
+            if (desired.All(item => item.Id != StagedItems[index].Id)) StagedItems.RemoveAt(index);
+        }
+
+        for (var index = 0; index < desired.Length; index++)
+        {
+            var currentIndex = StagedItems.ToList().FindIndex(item => item.Id == desired[index].Id);
+            if (currentIndex < 0)
+            {
+                StagedItems.Insert(index, desired[index]);
+            }
+            else
+            {
+                if (currentIndex != index) StagedItems.Move(currentIndex, index);
+                if (!Equals(StagedItems[index], desired[index])) StagedItems[index] = desired[index];
+            }
         }
 
         OnPropertyChanged(nameof(HasStagedItems));
@@ -302,6 +402,13 @@ public sealed partial class MainViewModel : ObservableObject
         {
             SelectedMaterial = StagedItems.SingleOrDefault(item => item.Id == selectedId);
         }
+    }
+
+    private void ReplaceStagedItem(StagedMaterial updated)
+    {
+        var index = StagedItems.ToList().FindIndex(item => item.Id == updated.Id);
+        if (index >= 0) StagedItems[index] = updated;
+        if (SelectedMaterial?.Id == updated.Id) SelectedMaterial = updated;
     }
 
     private async Task Run(Func<Task> action)
@@ -321,6 +428,12 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var store = new StagingStore();
         return new MaterialStagingService(store, new FileStagingService(store));
+    }
+
+    public void Dispose()
+    {
+        CancelPendingDraftSave();
+        CancelPendingNoteSave();
     }
 }
 

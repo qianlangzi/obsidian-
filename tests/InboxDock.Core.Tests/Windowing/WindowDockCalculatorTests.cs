@@ -82,4 +82,26 @@ public sealed class WindowDockCalculatorTests
         Assert.Equal(40, rect.Right);
         Assert.Equal(60, rect.Bottom);
     }
+
+    [Theory]
+    [InlineData(DockEdge.Left, 0, 401, 20, 46)]
+    [InlineData(DockEdge.Right, 980, 401, 20, 46)]
+    [InlineData(DockEdge.Top, 379, 0, 46, 20)]
+    [InlineData(DockEdge.Bottom, 379, 780, 46, 20)]
+    public void PeekHandleRect_UsesCompactHandleOnSelectedEdge(
+        DockEdge edge,
+        double expectedLeft,
+        double expectedTop,
+        double expectedWidth,
+        double expectedHeight)
+    {
+        var result = WindowDockCalculator.PeekHandleRect(
+            edge,
+            new WindowRect(250, 220, 304, 408),
+            new WindowRect(0, 0, 1000, 800),
+            longSide: 46,
+            shortSide: 20);
+
+        Assert.Equal(new WindowRect(expectedLeft, expectedTop, expectedWidth, expectedHeight), result);
+    }
 }

@@ -41,9 +41,17 @@ public sealed class MaterialStagingService
         IReadOnlyList<string> sourcePaths,
         CancellationToken cancellationToken = default)
     {
-        var material = await files.StageFilesAsync(sourcePaths, cancellationToken);
-        await LoadAsync(cancellationToken);
-        return Snapshot.Items.Single(item => item.Id == material.Id);
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            var result = await files.StageFilesAsync(sourcePaths, Snapshot, cancellationToken);
+            Snapshot = result.Snapshot;
+            return result.Material;
+        }
+        finally
+        {
+            gate.Release();
+        }
     }
 
     public async Task<StagedMaterial?> StagePastedLinkAsync(
@@ -81,6 +89,20 @@ public sealed class MaterialStagingService
         {
             gate.Release();
         }
+    }
+
+    public Task<StagedMaterial> UpdateNoteAsync(
+        Guid id,
+        string? note,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+        return UpdateAsync(
+            id,
+            item => item.Kind == StagedMaterialKind.Files
+                ? item with { Note = normalized }
+                : throw new InvalidOperationException("只有文件材料可以添加备注。"),
+            cancellationToken);
     }
 
     public async Task<StagedMaterial> UpdateAsync(

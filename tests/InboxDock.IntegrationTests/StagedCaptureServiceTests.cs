@@ -59,11 +59,15 @@ public sealed class StagedCaptureServiceTests : IDisposable
         var first = await CreateSourceAsync("原件一.txt", "one");
         var second = await CreateSourceAsync("原件二.txt", "two");
         var material = await staging.StageFilesAsync([first, second]);
+        material = await staging.UpdateAsync(
+            material.Id,
+            item => item with { Note = "一起阅读并比较" });
         var stagedPaths = material.Files.Select(file => file.StagedPath).ToArray();
 
         var result = await capture.ConfirmAsync(material.Id);
 
         Assert.True(File.Exists(result.InboxNotePath));
+        Assert.Contains("一起阅读并比较", await File.ReadAllTextAsync(result.InboxNotePath!));
         Assert.Equal(2, result.AttachmentPaths.Count);
         Assert.Equal("one", await File.ReadAllTextAsync(first));
         Assert.Equal("two", await File.ReadAllTextAsync(second));

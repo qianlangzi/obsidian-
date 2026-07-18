@@ -21,7 +21,8 @@ public sealed class StagingStoreTests
             new StagedMaterial(Guid.NewGuid(), StagedMaterialKind.Files, "报告.pdf", createdAt,
                 StagedMaterialStatus.Failed,
                 [new StagedFile("D:\\来源\\报告.pdf", "报告.pdf", stagedPath, 42)],
-                LastError: "等待重试"),
+                LastError: "等待重试",
+                Note: "先阅读第二章"),
         };
         var snapshot = new StagingSnapshot(items, "今天想到：材料桶");
 
@@ -42,6 +43,7 @@ public sealed class StagingStoreTests
             Assert.Equal(expected.Status, actual.Status);
             Assert.Equal(expected.Content, actual.Content);
             Assert.Equal(expected.LastError, actual.LastError);
+            Assert.Equal(expected.Note, actual.Note);
             Assert.Equal(expected.Files.ToArray(), actual.Files.ToArray());
         }
     }

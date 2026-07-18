@@ -6,8 +6,8 @@
         Title="InboxDock"
         Width="304"
         Height="408"
-        MinWidth="52"
-        MinHeight="52"
+        MinWidth="16"
+        MinHeight="16"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -41,7 +41,8 @@
   </Window.Resources>
 
   <Grid x:Name="ShellHost">
-    <Border Margin="7"
+    <Border x:Name="ShellShadow"
+            Margin="7"
             CornerRadius="17"
             Background="#280E1B13"
             IsHitTestVisible="False" />
@@ -51,7 +52,11 @@
             Background="{StaticResource Paper}"
             BorderBrush="#BBC6CEC7"
             BorderThickness="1"
-            CornerRadius="14">
+            CornerRadius="14"
+            RenderTransformOrigin="0.5,0.5">
+      <Border.RenderTransform>
+        <ScaleTransform x:Name="ExpandedScale" ScaleX="1" ScaleY="1" />
+      </Border.RenderTransform>
       <Grid>
         <Grid.RowDefinitions>
           <RowDefinition Height="50" />
@@ -92,56 +97,57 @@
                     BorderThickness="0"
                     Background="Transparent">
           <TabItem Header="收集">
-            <Grid Margin="0,7,0,0">
+            <Grid x:Name="CaptureSurface"
+                  Margin="0,7,0,0"
+                  AllowDrop="True"
+                  Drop="OnDrop"
+                  DragEnter="OnDragEnter"
+                  DragOver="OnDragEnter"
+                  DragLeave="OnDragLeave">
               <Grid.RowDefinitions>
-                <RowDefinition Height="47" />
-                <RowDefinition Height="7" />
                 <RowDefinition />
               </Grid.RowDefinitions>
 
-              <Border x:Name="DropZone"
-                      AllowDrop="True"
-                      Drop="OnDrop"
-                      DragEnter="OnDragEnter"
-                      DragLeave="OnDragLeave"
-                      CornerRadius="10"
-                      Background="{StaticResource PaperRaised}"
-                      BorderBrush="{StaticResource LineStrong}"
-                      BorderThickness="1">
-                <Grid Margin="11,0">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="32" />
-                    <ColumnDefinition />
-                    <ColumnDefinition Width="Auto" />
-                  </Grid.ColumnDefinitions>
-                  <Border Width="27" Height="27" CornerRadius="8" Background="{StaticResource AccentSoft}">
-                    <icons:PackIconLucide Kind="FileDown" Width="15" Foreground="{StaticResource Accent}"
-                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
-                  </Border>
-                  <StackPanel Grid.Column="1" Margin="7,0" VerticalAlignment="Center">
-                    <TextBlock Text="拖入文件，或粘贴链接" FontSize="11.5" FontWeight="SemiBold" />
-                    <TextBlock Text="加入后会先问你，再收进 Inbox" FontSize="9.5" Foreground="{StaticResource Muted}" />
-                  </StackPanel>
-                  <TextBlock Grid.Column="2" Text="暂存" FontSize="9.5" Foreground="{StaticResource Accent}"
-                             VerticalAlignment="Center" />
-                </Grid>
-              </Border>
-
-              <Border Grid.Row="2"
-                      CornerRadius="10"
+              <Border CornerRadius="10"
                       Background="White"
                       BorderBrush="{StaticResource Line}"
                       BorderThickness="1">
                 <Grid>
                   <Grid.RowDefinitions>
                     <RowDefinition />
-                    <RowDefinition Height="68" />
+                    <RowDefinition Height="Auto" />
                   </Grid.RowDefinitions>
 
                   <Grid Margin="8,8,8,3">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                      <ItemsControl ItemsSource="{Binding StagedItems}">
-                        <ItemsControl.ItemTemplate>
+                    <ListBox ItemsSource="{Binding StagedItems}"
+                             BorderThickness="0"
+                             Background="Transparent"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             VirtualizingPanel.IsVirtualizing="True"
+                             VirtualizingPanel.VirtualizationMode="Recycling">
+                      <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <VirtualizingStackPanel />
+                        </ItemsPanelTemplate>
+                      </ListBox.ItemsPanel>
+                      <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                          <Setter Property="Padding" Value="0" />
+                          <Setter Property="Margin" Value="0" />
+                          <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                          <Setter Property="Background" Value="Transparent" />
+                          <Setter Property="BorderThickness" Value="0" />
+                          <Setter Property="Template">
+                            <Setter.Value>
+                              <ControlTemplate TargetType="ListBoxItem">
+                                <ContentPresenter />
+                              </ControlTemplate>
+                            </Setter.Value>
+                          </Setter>
+                        </Style>
+                      </ListBox.ItemContainerStyle>
+                      <ListBox.ItemTemplate>
                           <DataTemplate>
                             <Border Style="{StaticResource MaterialCard}"
                                     Tag="{Binding}"
@@ -178,9 +184,8 @@
                               </Grid>
                             </Border>
                           </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                      </ItemsControl>
-                    </ScrollViewer>
+                      </ListBox.ItemTemplate>
+                    </ListBox>
 
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
                                 IsHitTestVisible="False">
@@ -202,7 +207,17 @@
                   </Grid>
 
                   <Grid Grid.Row="1" Margin="8,3,8,8">
+                    <Grid.RowDefinitions>
+                      <RowDefinition Height="Auto" />
+                      <RowDefinition Height="20" />
+                    </Grid.RowDefinitions>
                     <TextBox x:Name="DraftEditor"
+                             MinHeight="58"
+                             MaxHeight="112"
+                             MinLines="2"
+                             MaxLines="5"
+                             TextBlock.LineHeight="19"
+                             VerticalContentAlignment="Top"
                              Text="{Binding DraftText, UpdateSourceTrigger=PropertyChanged}"
                              AcceptsReturn="True"
                              VerticalScrollBarVisibility="Auto"
@@ -220,11 +235,11 @@
                         </Style>
                       </TextBlock.Style>
                     </TextBlock>
-                    <Border Margin="0,0,8,7" Padding="6,2" HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                            CornerRadius="5" Background="{StaticResource Paper}">
+                    <StackPanel Grid.Row="1" Margin="2,4,2,0" Orientation="Horizontal" HorizontalAlignment="Right">
                       <TextBlock Text="Ctrl + Enter" FontFamily="Segoe UI Variable Text" FontSize="8.5"
                                  Foreground="{StaticResource Muted}" />
-                    </Border>
+                      <TextBlock Text="  收集文字" Margin="4,0,0,0" FontSize="8.5" Foreground="{StaticResource Faint}" />
+                    </StackPanel>
                   </Grid>
 
                   <Grid x:Name="ConfirmationSheet"
@@ -257,12 +272,32 @@
                           <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="34" />
                           </Grid.RowDefinitions>
                           <TextBlock Text="要收进 Inbox 吗？" FontSize="12" FontWeight="SemiBold" />
                           <TextBlock Grid.Row="1" Margin="0,3,0,9" FontSize="10" Foreground="{StaticResource Muted}"
                                      Text="{Binding SelectedMaterial.Title}" TextTrimming="CharacterEllipsis" />
-                          <Grid Grid.Row="2">
+                          <StackPanel Grid.Row="2" Margin="0,0,0,9">
+                            <StackPanel.Style>
+                              <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                  <DataTrigger Binding="{Binding SelectedMaterial.Kind}" Value="Files">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                  </DataTrigger>
+                                </Style.Triggers>
+                              </Style>
+                            </StackPanel.Style>
+                            <TextBlock Text="备注（可选）" Margin="1,0,0,4" FontSize="9.5"
+                                       Foreground="{StaticResource Muted}" />
+                            <TextBox MinHeight="48" MaxHeight="70" TextBlock.LineHeight="18"
+                                     VerticalContentAlignment="Top"
+                                     AcceptsReturn="True"
+                                     VerticalScrollBarVisibility="Auto"
+                                     Text="{Binding SelectedNote, UpdateSourceTrigger=PropertyChanged}" />
+                          </StackPanel>
+                          <Grid Grid.Row="3">
                             <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="8" /><ColumnDefinition /></Grid.ColumnDefinitions>
                             <Button Style="{StaticResource SecondaryButton}" Click="OnDeferSelected" Content="先暂存" />
                             <Button Grid.Column="2" Style="{StaticResource PrimaryButton}" Click="OnConfirmSelected"
@@ -299,6 +334,25 @@
                     </Border>
                   </Grid>
                 </Grid>
+              </Border>
+
+              <Border x:Name="DropOverlay"
+                      Panel.ZIndex="20"
+                      Visibility="Collapsed"
+                      Margin="5"
+                      CornerRadius="10"
+                      Background="#E6E4F1E9"
+                      BorderBrush="{StaticResource Accent}"
+                      BorderThickness="2"
+                      IsHitTestVisible="False">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <icons:PackIconLucide Kind="Files" Width="28" Foreground="{StaticResource Accent}"
+                                        HorizontalAlignment="Center" />
+                  <TextBlock Text="松开以加入材料桶" Margin="0,8,0,0" FontSize="12" FontWeight="SemiBold"
+                             Foreground="{StaticResource Accent}" />
+                  <TextBlock Text="多个文件会合并为一组" Margin="0,3,0,0" FontSize="9.5"
+                             Foreground="{StaticResource Muted}" />
+                </StackPanel>
               </Border>
             </Grid>
           </TabItem>
@@ -341,21 +395,22 @@
       </Grid>
     </Border>
 
-    <Border x:Name="CollapsedShell"
+    <Border x:Name="PeekShell"
             Visibility="Collapsed"
-            CornerRadius="14"
-            Background="{StaticResource PaperRaised}"
-            BorderBrush="#B7C6CEC7"
+            CornerRadius="9"
+            Background="#FDFCF8"
+            BorderBrush="#A526734D"
             BorderThickness="1"
             Cursor="Hand"
-            MouseLeftButtonDown="OnCollapsedPointerDown">
+            MouseEnter="OnPeekMouseEnter">
       <Grid>
-        <Border Width="34" Height="34" CornerRadius="11" Background="{StaticResource Accent}">
-          <icons:PackIconLucide Kind="Inbox" Width="18" Height="18" Foreground="White"
-                                HorizontalAlignment="Center" VerticalAlignment="Center" />
-        </Border>
-        <Border Width="16" Height="3" Margin="0,0,0,5" CornerRadius="2" Background="#6B26734D"
-                VerticalAlignment="Bottom" />
+        <icons:PackIconLucide x:Name="PeekIcon"
+                              Kind="ChevronLeft"
+                              Width="15"
+                              Height="15"
+                              Foreground="{StaticResource Accent}"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center" />
       </Grid>
     </Border>
   </Grid>

@@ -34,11 +34,20 @@ public static class InboxMarkdown
         string title,
         IReadOnlyList<CapturedAttachment> files,
         Guid captureId,
-        DateTimeOffset createdAt)
+        DateTimeOffset createdAt,
+        string? note = null)
     {
         var builder = new StringBuilder(ForText(title, "", captureId, createdAt));
         var contentHeading = builder.ToString().LastIndexOf("## 内容", StringComparison.Ordinal);
         builder.Remove(contentHeading, builder.Length - contentHeading);
+        if (!string.IsNullOrWhiteSpace(note))
+        {
+            builder.AppendLine("## 备注")
+                .AppendLine()
+                .AppendLine(note.Trim())
+                .AppendLine();
+        }
+
         builder.AppendLine("## 附件").AppendLine();
 
         foreach (var file in files)

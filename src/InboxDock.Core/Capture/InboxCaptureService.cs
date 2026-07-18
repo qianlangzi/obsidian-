@@ -20,7 +20,10 @@ public sealed class InboxCaptureService(VaultLayout layout)
         return new CaptureResult(id, now, path, []);
     }
 
-    public async Task<CaptureResult> CaptureFilesAsync(IReadOnlyList<string> sourcePaths, CancellationToken cancellationToken = default)
+    public async Task<CaptureResult> CaptureFilesAsync(
+        IReadOnlyList<string> sourcePaths,
+        string? note = null,
+        CancellationToken cancellationToken = default)
     {
         if (sourcePaths.Count == 0) throw new ArgumentException("请拖入至少一个文件。", nameof(sourcePaths));
         var now = DateTimeOffset.Now;
@@ -50,7 +53,10 @@ public sealed class InboxCaptureService(VaultLayout layout)
 
             var noteName = SafeName.AvailableFileName($"{now:yyyy-MM-dd-HHmmss}-材料 {attachments.Count} 项.md", candidate => File.Exists(Path.Combine(layout.InboxDirectory, candidate)));
             var notePath = Path.Combine(layout.InboxDirectory, noteName);
-            await AtomicFile.WriteTextAsync(notePath, InboxMarkdown.ForFiles($"材料 {attachments.Count} 项", attachments, id, now), cancellationToken);
+            await AtomicFile.WriteTextAsync(
+                notePath,
+                InboxMarkdown.ForFiles($"材料 {attachments.Count} 项", attachments, id, now, note),
+                cancellationToken);
             return new CaptureResult(id, now, notePath, copied);
         }
         catch
