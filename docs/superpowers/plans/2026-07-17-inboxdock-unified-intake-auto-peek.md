@@ -388,3 +388,15 @@ git status --short
 ```
 
 Expected: working tree is clean except intentionally generated ignored artifacts.
+
+## Execution record
+
+Implemented on branch `feature/unified-intake-auto-peek` on 2026-07-18.
+
+- Core and integration suite: 82 passed, 0 failed.
+- Release build: succeeded with 0 warnings and 0 errors.
+- Self-contained single-file publish: `artifacts/publish/InboxDock.exe`, 181,665,535 bytes.
+- Runtime auto-peek smoke check: the test instance rewrote window state to `Peeking: true` at the right screen edge after the idle interval.
+- Idle resource sample: private memory 217.38 MB after warm-up and 217.40 MB after continued idle; handles changed from 812 to 809.
+- The existing user window state was restored after runtime testing.
+- Windows window-capture automation could not enumerate the 20×46 borderless peeking handle, so final visual judgment for animation smoothness and 100/125/150 percent DPI remains a hands-on release check.
