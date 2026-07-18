@@ -6,8 +6,8 @@
         Title="InboxDock"
         Width="304"
         Height="408"
-        MinWidth="52"
-        MinHeight="52"
+        MinWidth="16"
+        MinHeight="16"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -41,7 +41,8 @@
   </Window.Resources>
 
   <Grid x:Name="ShellHost">
-    <Border Margin="7"
+    <Border x:Name="ShellShadow"
+            Margin="7"
             CornerRadius="17"
             Background="#280E1B13"
             IsHitTestVisible="False" />
@@ -51,7 +52,11 @@
             Background="{StaticResource Paper}"
             BorderBrush="#BBC6CEC7"
             BorderThickness="1"
-            CornerRadius="14">
+            CornerRadius="14"
+            RenderTransformOrigin="0.5,0.5">
+      <Border.RenderTransform>
+        <ScaleTransform x:Name="ExpandedScale" ScaleX="1" ScaleY="1" />
+      </Border.RenderTransform>
       <Grid>
         <Grid.RowDefinitions>
           <RowDefinition Height="50" />
@@ -390,21 +395,22 @@
       </Grid>
     </Border>
 
-    <Border x:Name="CollapsedShell"
+    <Border x:Name="PeekShell"
             Visibility="Collapsed"
-            CornerRadius="14"
-            Background="{StaticResource PaperRaised}"
-            BorderBrush="#B7C6CEC7"
+            CornerRadius="9"
+            Background="#FDFCF8"
+            BorderBrush="#A526734D"
             BorderThickness="1"
             Cursor="Hand"
-            MouseLeftButtonDown="OnCollapsedPointerDown">
+            MouseEnter="OnPeekMouseEnter">
       <Grid>
-        <Border Width="34" Height="34" CornerRadius="11" Background="{StaticResource Accent}">
-          <icons:PackIconLucide Kind="Inbox" Width="18" Height="18" Foreground="White"
-                                HorizontalAlignment="Center" VerticalAlignment="Center" />
-        </Border>
-        <Border Width="16" Height="3" Margin="0,0,0,5" CornerRadius="2" Background="#6B26734D"
-                VerticalAlignment="Bottom" />
+        <icons:PackIconLucide x:Name="PeekIcon"
+                              Kind="ChevronLeft"
+                              Width="15"
+                              Height="15"
+                              Foreground="{StaticResource Accent}"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center" />
       </Grid>
     </Border>
   </Grid>

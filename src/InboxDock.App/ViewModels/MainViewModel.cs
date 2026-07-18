@@ -11,7 +11,7 @@ using InboxDock.Core.Vault;
 
 namespace InboxDock.App.ViewModels;
 
-public sealed partial class MainViewModel : ObservableObject
+public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
     private readonly SettingsStore settingsStore;
     private readonly MaterialStagingService staging;
@@ -428,6 +428,12 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var store = new StagingStore();
         return new MaterialStagingService(store, new FileStagingService(store));
+    }
+
+    public void Dispose()
+    {
+        CancelPendingDraftSave();
+        CancelPendingNoteSave();
     }
 }
 
