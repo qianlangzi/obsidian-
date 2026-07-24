@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\InboxDock.Core\InboxDock.Core.csproj" />
@@ -14,13 +14,16 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <SelfContained>true</SelfContained>
-    <PublishSingleFile>true</PublishSingleFile>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <AssemblyName>InboxDock</AssemblyName>
     <RootNamespace>InboxDock.App</RootNamespace>
     <ApplicationIcon>..\..\assets\inboxdock.ico</ApplicationIcon>
+    <!--
+      Publish-specific properties (RuntimeIdentifier, SelfContained, PublishSingleFile)
+      intentionally live in the build script / CI, not in the csproj. Keeping them out
+      of the csproj ensures dotnet build and dotnet test use the framework-dependent
+      build path and avoid the single-file self-extract that breaks Environment.ProcessPath
+      and WPF resource loading on some machines.
+    -->
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">

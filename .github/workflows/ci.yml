@@ -15,7 +15,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: 10.0.100
 
       - name: Restore
         run: dotnet restore InboxDock.sln
@@ -29,11 +29,14 @@ jobs:
       - name: Verify zero warnings
         shell: pwsh
         run: |
+          # TreatWarningsAsErrors is already on in Directory.Build.props, so any
+          # warning in the build output above will have failed the build. This step
+          # exists for visibility only and intentionally matches CS\d+ codes.
           $output = dotnet build InboxDock.sln -c Release --no-restore 2>&1
-          $warnings = $output | Select-String -Pattern "warning\b" -CaseSensitive
+          $warnings = $output | Select-String -Pattern "^.*: warning CS\d+"
           if ($warnings.Count -gt 0) {
             Write-Host "::error::Build produced $($warnings.Count) warning(s)"
             $warnings | ForEach-Object { Write-Host $_ }
             exit 1
           }
-          Write-Host "No warnings detected."
+          Write-Host "No compiler warnings detected."

@@ -80,11 +80,11 @@ public static class TemplateRenderer
             case "target":
                 return context.Target ?? string.Empty;
             case "date":
-                return FormatDate(context.Now.LocalDateTime, format ?? "yyyy-MM-dd", variable, position, errors);
+                return FormatDate(context.Now, format ?? "yyyy-MM-dd", variable, position, errors);
             case "time":
-                return FormatDate(context.Now.LocalDateTime, format ?? "HH:mm", variable, position, errors);
+                return FormatDate(context.Now, format ?? "HH:mm", variable, position, errors);
             case "timestamp":
-                return FormatDate(context.Now.LocalDateTime, format ?? "yyyy-MM-dd-HHmmss", variable, position, errors);
+                return FormatDate(context.Now, format ?? "yyyy-MM-dd-HHmmss", variable, position, errors);
             case "files":
                 return RenderFiles(context, variable, position, errors);
             default:
@@ -94,7 +94,7 @@ public static class TemplateRenderer
     }
 
     private static string FormatDate(
-        DateTime now,
+        DateTimeOffset now,
         string format,
         string variable,
         int position,
@@ -108,6 +108,8 @@ public static class TemplateRenderer
 
         try
         {
+            // 使用 DateTimeOffset.ToString 直接按偏移量格式化，
+            // 避免 LocalDateTime 转换导致跨时区结果不一致。
             return now.ToString(format, CultureInfo.InvariantCulture);
         }
         catch (FormatException)
