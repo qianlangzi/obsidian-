@@ -30,4 +30,5 @@ public sealed record StagedMaterial(
     IReadOnlyList<StagedFile> Files,
     string? Content = null,
     string? LastError = null,
-    string? Note = null);
+    string? Note = null,
+    Guid? PreferredTargetId = null);

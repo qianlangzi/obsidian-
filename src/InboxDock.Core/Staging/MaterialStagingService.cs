@@ -105,6 +105,21 @@ public sealed class MaterialStagingService
             cancellationToken);
     }
 
+    /// <summary>
+    /// 更新材料的首选收集目标。传入 null 清除选择，用于目标被删除后要求重新选择。
+    /// 不会校验目标是否存在；调用方在删除目标时应主动清除引用。
+    /// </summary>
+    public Task<StagedMaterial> UpdatePreferredTargetAsync(
+        Guid id,
+        Guid? targetId,
+        CancellationToken cancellationToken = default)
+    {
+        return UpdateAsync(
+            id,
+            item => item with { PreferredTargetId = targetId },
+            cancellationToken);
+    }
+
     public async Task<StagedMaterial> UpdateAsync(
         Guid id,
         Func<StagedMaterial, StagedMaterial> update,

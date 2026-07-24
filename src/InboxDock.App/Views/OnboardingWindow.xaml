@@ -1,0 +1,194 @@
+<Window x:Class="InboxDock.App.Views.OnboardingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="InboxDock 首次配置"
+        Width="520"
+        Height="620"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource Paper}"
+        ShowInTaskbar="True">
+  <Grid Margin="32,24">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <!-- 步骤指示器 -->
+    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,24">
+      <TextBlock FontSize="11" Foreground="{StaticResource Muted}">
+        <Run Text="步骤 " />
+        <Run Text="{Binding Step}" FontWeight="SemiBold" Foreground="{StaticResource Accent}" />
+        <Run Text=" / 2" />
+      </TextBlock>
+    </StackPanel>
+
+    <!-- 第一步：选择 Vault -->
+    <Grid Grid.Row="1" Visibility="{Binding Step, Converter={StaticResource StepToVisibility1}}">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+      </Grid.RowDefinitions>
+
+      <TextBlock Grid.Row="0"
+                 FontSize="20"
+                 FontWeight="SemiBold"
+                 Text="选择 Obsidian Vault" />
+
+      <TextBlock Grid.Row="1"
+                 Margin="0,8,0,20"
+                 FontSize="12"
+                 Foreground="{StaticResource Muted}"
+                 TextWrapping="Wrap"
+                 Text="InboxDock 需要一个包含 .obsidian 的文件夹才能把收集到的内容写入 Vault。" />
+
+      <Button Grid.Row="2"
+              Style="{StaticResource SecondaryButton}"
+              HorizontalAlignment="Left"
+              Padding="18,10"
+              Click="BrowseVault_Click"
+              Content="浏览选择 Vault 文件夹..." />
+
+      <StackPanel Grid.Row="3" Margin="0,20,0,0">
+        <TextBlock Text="Vault 路径" FontSize="11" Foreground="{StaticResource Muted}" Margin="0,0,0,4" />
+        <TextBox Text="{Binding VaultPath, Mode=OneWay}" IsReadOnly="True" />
+        <TextBlock Margin="0,8,0,0"
+                   FontSize="11"
+                   Foreground="{StaticResource Muted}"
+                   Text="{Binding VaultValidationMessage}" />
+      </StackPanel>
+    </Grid>
+
+    <!-- 第二步：选择写入方式 -->
+    <Grid Grid.Row="1" Visibility="{Binding Step, Converter={StaticResource StepToVisibility2}}">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+      </Grid.RowDefinitions>
+
+      <TextBlock Grid.Row="0"
+                 FontSize="20"
+                 FontWeight="SemiBold"
+                 Text="选择默认保存方式" />
+
+      <TextBlock Grid.Row="1"
+                 Margin="0,8,0,16"
+                 FontSize="12"
+                 Foreground="{StaticResource Muted}"
+                 TextWrapping="Wrap"
+                 Text="选择 InboxDock 默认把收集到的内容写入 Vault 的方式。之后可以在设置中更改或创建更多目标。" />
+
+      <ListBox Grid.Row="2"
+               ItemsSource="{Binding WriteModes}"
+               SelectedItem="{Binding SelectedWriteMode}"
+               BorderThickness="0"
+               Background="Transparent">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <Border Margin="0,4,0,4"
+                    Padding="16,12"
+                    CornerRadius="10"
+                    BorderThickness="1"
+                    BorderBrush="{StaticResource Line}"
+                    Background="{StaticResource PaperRaised}">
+              <StackPanel>
+                <TextBlock FontSize="13" FontWeight="SemiBold" Text="{Binding Label}" />
+                <TextBlock FontSize="11" Foreground="{StaticResource Muted}" Text="{Binding Description}" />
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+        <ListBox.ItemContainerStyle>
+          <Style TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+              <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                  <Border x:Name="ItemSurface"
+                          Background="Transparent"
+                          Padding="{TemplateBinding Padding}">
+                    <ContentPresenter HorizontalAlignment="Stretch" />
+                  </Border>
+                  <ControlTemplate.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                      <Setter TargetName="ItemSurface" Property="Background" Value="{StaticResource AccentSoft}" />
+                    </Trigger>
+                  </ControlTemplate.Triggers>
+                </ControlTemplate>
+              </Setter.Value>
+            </Setter>
+          </Style>
+        </ListBox.ItemContainerStyle>
+      </ListBox>
+
+      <!-- Daily Notes 建议 -->
+      <Border Margin="0,16,0,0"
+              Padding="14,10"
+              CornerRadius="10"
+              Background="{StaticResource WarmSoft}"
+              Visibility="{Binding HasDailyNotesSuggestion, Converter={StaticResource BoolToVisibility}}">
+        <StackPanel>
+          <TextBlock FontSize="12" FontWeight="SemiBold" Text="检测到 Daily Notes" />
+          <TextBlock Margin="0,4,0,0"
+                     FontSize="11"
+                     Foreground="{StaticResource Muted}"
+                     TextWrapping="Wrap"
+                     Text="{Binding DailyNotesHint}" />
+          <CheckBox Margin="0,8,0,0"
+                   FontSize="11"
+                   IsChecked="{Binding IncludeDailyNotesTarget}"
+                   Content="同时创建今日日记目标" />
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <!-- 错误信息 -->
+    <TextBlock Grid.Row="1"
+               Margin="0,16,0,0"
+               VerticalAlignment="Bottom"
+               FontSize="11"
+               Foreground="{StaticResource Danger}"
+               TextWrapping="Wrap"
+               Text="{Binding ErrorMessage}"
+               Visibility="{Binding ErrorMessage, Converter={StaticResource NonEmptyToVisibility}}" />
+
+    <!-- 底部按钮 -->
+    <StackPanel Grid.Row="2"
+                Orientation="Horizontal"
+                HorizontalAlignment="Right"
+                Margin="0,24,0,0">
+      <Button Style="{StaticResource SecondaryButton}"
+              Padding="18,10"
+              Content="取消"
+              Command="{Binding CancelCommand}" />
+
+      <Button Margin="8,0,0,0"
+              Style="{StaticResource PrimaryButton}"
+              Padding="18,10"
+              Visibility="{Binding Step, Converter={StaticResource StepToVisibility1}}"
+              Content="下一步"
+              IsEnabled="{Binding IsVaultValid}"
+              Command="{Binding GoToStep2Command}" />
+
+      <Button Margin="8,0,0,0"
+              Style="{StaticResource SecondaryButton}"
+              Padding="18,10"
+              Visibility="{Binding Step, Converter={StaticResource StepToVisibility2}}"
+              Content="上一步"
+              Command="{Binding BackToStep1Command}" />
+
+      <Button Margin="8,0,0,0"
+              Style="{StaticResource PrimaryButton}"
+              Padding="18,10"
+              Visibility="{Binding Step, Converter={StaticResource StepToVisibility2}}"
+              Content="完成"
+              Command="{Binding FinishCommand}" />
+    </StackPanel>
+  </Grid>
+</Window>

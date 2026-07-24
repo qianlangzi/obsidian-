@@ -4,6 +4,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <Deterministic>true</Deterministic>
+    <!-- 单一版本来源：v0.3.0 公开测试版。CI/Release 可通过标签覆盖。 -->
+    <VersionPrefix>0.3.0</VersionPrefix>
+    <AssemblyVersion>0.3.0.0</AssemblyVersion>
+    <FileVersion>0.3.0.0</FileVersion>
+    <Company>InboxDock</Company>
+    <Product>InboxDock</Product>
+    <Copyright>Copyright © 2026 InboxDock contributors</Copyright>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugType>none</DebugType>

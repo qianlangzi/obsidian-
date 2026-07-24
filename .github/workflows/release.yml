@@ -1,21 +1,91 @@
 name: Release
+
 on:
   push:
     tags: ['v*']
+
 jobs:
   release:
     runs-on: windows-latest
     permissions:
       contents: write
+
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-      - run: dotnet test InboxDock.sln -c Release
-      - run: dotnet publish src/InboxDock.App -c Release -r win-x64 --self-contained true -o artifacts/publish
-      - shell: pwsh
-        run: Compress-Archive artifacts/publish/* artifacts/InboxDock-win-x64.zip
-      - uses: softprops/action-gh-release@v2
+
+      - name: Extract version from tag
+        id: version
+        shell: pwsh
+        run: |
+          $tag = "$env:GITHUB_REF" -replace 'refs/tags/', ''
+          $version = $tag -replace '^v', ''
+          Write-Host "Tag: $tag, Version: $version"
+          echo "tag=$tag" >> $env:GITHUB_OUTPUT
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Restore
+        run: dotnet restore InboxDock.sln
+
+      - name: Build
+        run: dotnet build InboxDock.sln -c Release --no-restore -p:Version=${{ steps.version.outputs.version }}
+
+      - name: Test
+        run: dotnet test InboxDock.sln -c Release --no-build
+
+      - name: Publish self-contained
+        run: |
+          dotnet publish src/InboxDock.App -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:Version=${{ steps.version.outputs.version }} `
+            -o artifacts/publish
+
+      - name: Create portable ZIP
+        run: |
+          Compress-Archive -Path artifacts/publish/* `
+            -DestinationPath artifacts/InboxDock-${{ steps.version.outputs.version }}-portable-win-x64.zip `
+            -CompressionLevel Optimal
+
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup -y --no-progress
+          refreshenv
+
+      - name: Build installer
+        run: iscc /DAppVersion=${{ steps.version.outputs.version }} installer/InboxDock.iss
+
+      - name: Generate SHA256 checksums
+        shell: pwsh
+        run: |
+          $checksums = @()
+          Get-ChildItem artifacts -File | Where-Object { $_.Name -ne "SHA256SUMS.txt" } | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            $checksums += "$hash  $($_.Name)"
+          }
+          $checksums | Set-Content -Path artifacts/SHA256SUMS.txt -Encoding UTF8
+
+      - name: Read changelog
+        id: changelog
+        shell: pwsh
+        run: |
+          $changelog = Get-Content CHANGELOG.md -Raw -ErrorAction SilentlyContinue
+          if (-not $changelog) { $changelog = "InboxDock ${{ steps.version.outputs.tag }}" }
+          $changelog = $changelog -replace "`r`n", "`n"
+          echo "body<<EOF" >> $env:GITHUB_OUTPUT
+          echo "$changelog" >> $env:GITHUB_OUTPUT
+          echo "EOF" >> $env:GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/InboxDock-win-x64.zip
+          name: InboxDock ${{ steps.version.outputs.tag }}
+          body: ${{ steps.changelog.outputs.body }}
+          files: |
+            artifacts/InboxDock-${{ steps.version.outputs.version }}-portable-win-x64.zip
+            artifacts/InboxDock-Setup-${{ steps.version.outputs.version }}.exe
+            artifacts/SHA256SUMS.txt
+          prerelease: ${{ contains(steps.version.outputs.tag, 'beta') || contains(steps.version.outputs.tag, 'rc') }}

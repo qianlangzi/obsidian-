@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
 using InboxDock.Core.Staging;
+using InboxDock.Core.Targets;
 using MahApps.Metro.IconPacks;
 
 namespace InboxDock.App.Converters;
@@ -82,4 +83,114 @@ public sealed class MaterialStatusBrushConverter : IValueConverter
         brush.Freeze();
         return brush;
     }
+}
+
+public sealed class StepToVisibilityConverter : IValueConverter
+{
+    public int Step { get; set; }
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is int step && step == Step ? Visibility.Visible : Visibility.Collapsed;
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+public sealed class NonEmptyStringToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is string s && !string.IsNullOrEmpty(s) ? Visibility.Visible : Visibility.Collapsed;
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>当 WriteMode 不是 StagingOnly 时显示路径模板。</summary>
+public sealed class WriteModeToPathVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is TargetWriteMode mode && mode != TargetWriteMode.StagingOnly
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>仅当 WriteMode 为 CreateNote 时显示文件名模板。</summary>
+public sealed class WriteModeToFileNameVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is TargetWriteMode mode && mode == TargetWriteMode.CreateNote
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>当附件策略需要目录模板时显示。</summary>
+public sealed class AttachmentKindToDirectoryVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is AttachmentPolicyKind kind && kind != AttachmentPolicyKind.StagingOnly
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>把 WriteMode 枚举翻译成中文标签。</summary>
+public sealed class WriteModeToLabelConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is TargetWriteMode mode ? mode switch
+        {
+            TargetWriteMode.AppendToFile => "追加到固定文件",
+            TargetWriteMode.AppendToPeriodicFile => "追加到每日笔记",
+            TargetWriteMode.CreateNote => "新建笔记",
+            TargetWriteMode.StagingOnly => "只暂存",
+            _ => mode.ToString(),
+        } : string.Empty;
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>批量模式开关按钮文案。true 时显示"完成"，false 时显示"批量"。</summary>
+public sealed class BatchModeLabelConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is bool b && b ? "完成" : "批量";
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>非零整数转为 bool，用于按钮 IsEnabled 绑定到选中数量。</summary>
+public sealed class NonZeroBoolConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is int i && i > 0;
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>true 时折叠，false 时可见。用于互斥切换。</summary>
+public sealed class InverseBoolToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is bool b && b ? Visibility.Collapsed : Visibility.Visible;
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>bool 转为"已开启"/"已关闭"文案。</summary>
+public sealed class BoolToOnOffConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is bool b && b ? "已开启" : "已关闭";
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
 }

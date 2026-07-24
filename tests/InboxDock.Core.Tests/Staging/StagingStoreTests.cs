@@ -75,4 +75,67 @@ public sealed class StagingStoreTests
         Assert.Empty(result.Snapshot.Items);
         Assert.Equal(bytes, await File.ReadAllBytesAsync(store.DataPath));
     }
+
+    [Fact]
+    public async Task LoadAsync_OldJsonWithoutPreferredTargetId_LoadsWithNullTarget()
+    {
+        using var root = new TemporaryDirectory();
+        var store = new StagingStore(root.Path);
+        Directory.CreateDirectory(root.Path);
+        // 模拟 v0.2 旧版暂存 JSON：缺少 PreferredTargetId 字段。
+        var oldJson = """
+            {
+              "Items": [
+                {
+                  "Id": "00000000-0000-0000-0000-000000000001",
+                  "Kind": "Text",
+                  "Title": "旧版材料",
+                  "CreatedAt": "2026-07-01T08:00:00+08:00",
+                  "Status": "AwaitingConfirmation",
+                  "Files": [],
+                  "Content": "旧版内容",
+                  "LastError": null,
+                  "Note": null
+                }
+              ],
+              "DraftText": ""
+            }
+            """;
+        await File.WriteAllTextAsync(store.DataPath, oldJson);
+
+        var result = await store.LoadAsync();
+
+        Assert.Null(result.Error);
+        var material = Assert.Single(result.Snapshot.Items);
+        Assert.Equal("旧版材料", material.Title);
+        Assert.Null(material.PreferredTargetId);
+    }
+
+    [Fact]
+    public async Task SaveAndLoadAsync_PreservesPreferredTargetId()
+    {
+        using var root = new TemporaryDirectory();
+        var store = new StagingStore(root.Path);
+        var targetId = Guid.NewGuid();
+        var snapshot = new StagingSnapshot(
+            [
+                new StagedMaterial(
+                    Guid.NewGuid(),
+                    StagedMaterialKind.Text,
+                    "带目标",
+                    DateTimeOffset.Now,
+                    StagedMaterialStatus.AwaitingConfirmation,
+                    [],
+                    "内容",
+                    PreferredTargetId: targetId),
+            ],
+            string.Empty);
+
+        await store.SaveAsync(snapshot);
+        var result = await new StagingStore(root.Path).LoadAsync();
+
+        Assert.Null(result.Error);
+        var material = Assert.Single(result.Snapshot.Items);
+        Assert.Equal(targetId, material.PreferredTargetId);
+    }
 }

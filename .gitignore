@@ -8,3 +8,7 @@
 artifacts/
 publish/
 InboxDock.local.json
+
+# Inno Setup intermediate files
+installer/Output/
+*.iss.bak

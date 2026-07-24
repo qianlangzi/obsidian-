@@ -8,9 +8,13 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using InboxDock.App.Clipboard;
+using InboxDock.App.SystemIntegration;
 using InboxDock.App.ViewModels;
+using InboxDock.App.Views;
 using InboxDock.App.Windowing;
+using InboxDock.Core.Configuration;
 using InboxDock.Core.Staging;
+using InboxDock.Core.SystemIntegration;
 using InboxDock.Core.Windowing;
 using MahApps.Metro.IconPacks;
 using Forms = System.Windows.Forms;
@@ -28,6 +32,7 @@ public partial class MainWindow : Window
     private readonly MainViewModel vm = new();
     private readonly AutoPeekController autoPeek = new(TimeSpan.FromSeconds(10), DateTimeOffset.Now);
     private readonly DispatcherTimer idleTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
+    private readonly GlobalHotkeyService hotkey = new();
     private readonly Forms.ContextMenuStrip trayMenu = new();
     private readonly Forms.NotifyIcon tray;
     private readonly System.Drawing.Icon trayIcon;
@@ -42,6 +47,7 @@ public partial class MainWindow : Window
     private bool dragActive;
     private bool settingsOpen;
     private bool resourcesDisposed;
+    private string updateUrl = string.Empty;
     private DockEdge dockEdge = DockEdge.Right;
     private WindowDisplayState displayState = WindowDisplayState.Expanded;
 
@@ -67,15 +73,104 @@ public partial class MainWindow : Window
         MouseEnter += OnWindowMouseEnter;
         MouseLeave += OnWindowMouseLeave;
         vm.PropertyChanged += OnViewModelPropertyChanged;
+        vm.PostSuccessPeekRequested += OnPostSuccessPeekRequested;
+        hotkey.HotkeyPressed += OnHotkeyPressed;
+    }
+
+    private void OnHotkeyPressed()
+    {
+        Dispatcher.Invoke(() =>
+        {
+            if (!IsVisible)
+            {
+                Show();
+                if (displayState == WindowDisplayState.Peeking)
+                {
+                    _ = ExpandFromPeekAsync();
+                }
+                Activate();
+                RecordActivity();
+                idleTimer.Start();
+            }
+            else if (displayState == WindowDisplayState.Peeking)
+            {
+                _ = ExpandFromPeekAsync();
+            }
+            else
+            {
+                Activate();
+            }
+        });
+    }
+
+    private void OnPostSuccessPeekRequested(TimeSpan delay)
+    {
+        autoPeek.SchedulePostSuccessPeek(delay, DateTimeOffset.Now);
+        UpdateAutoPeekPauseState();
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         await vm.InitializeAsync();
+        ApplyAutoHideSetting();
+        ApplyHotkeySetting();
         RestoreWindowPlacement();
         ApplyRoundedClip();
         idleTimer.Start();
         UpdateAutoPeekPauseState();
+    }
+
+    /// <summary>从当前配置注册全局快捷键。</summary>
+    private void ApplyHotkeySetting()
+    {
+        var settings = vm.CurrentSettings;
+        var hotkeyText = settings?.CurrentProfile?.GlobalHotkey;
+        var gesture = string.IsNullOrWhiteSpace(hotkeyText)
+            ? HotkeyGesture.Default
+            : HotkeyGesture.TryParse(hotkeyText) ?? HotkeyGesture.Default;
+
+        hotkey.Bind(new System.Windows.Interop.WindowInteropHelper(this).Handle);
+        if (!hotkey.TryRegister(gesture))
+        {
+            // 注册失败时尝试默认快捷键，仍失败则静默忽略。
+            if (gesture != HotkeyGesture.Default)
+            {
+                hotkey.TryRegister(HotkeyGesture.Default);
+            }
+        }
+    }
+
+    /// <summary>将窗口显示并激活到前台。</summary>
+    public void BringToForeground()
+    {
+        if (!IsVisible)
+        {
+            Show();
+            if (displayState == WindowDisplayState.Peeking)
+            {
+                _ = ExpandFromPeekAsync();
+            }
+            idleTimer.Start();
+        }
+        else if (displayState == WindowDisplayState.Peeking)
+        {
+            _ = ExpandFromPeekAsync();
+        }
+
+        Activate();
+        // 通过短暂置顶再恢复确保覆盖其他窗口。
+        var wasTopmost = Topmost;
+        Topmost = true;
+        Topmost = wasTopmost;
+        RecordActivity();
+    }
+
+    /// <summary>从当前配置应用自动收回延时到 AutoPeekController。</summary>
+    private void ApplyAutoHideSetting()
+    {
+        var settings = vm.CurrentSettings;
+        var delay = settings?.CurrentProfile?.AutoHideDelay;
+        autoPeek.UpdateIdleDuration(delay, DateTimeOffset.Now);
     }
 
     private Forms.NotifyIcon CreateTrayIcon()
@@ -160,7 +255,8 @@ public partial class MainWindow : Window
     {
         Topmost = !Topmost;
         PinIcon.Kind = Topmost ? PackIconLucideKind.Pin : PackIconLucideKind.PinOff;
-        RecordActivity();
+        autoPeek.SetPinned(Topmost, DateTimeOffset.Now);
+        UpdateAutoPeekPauseState();
         SaveWindowPlacement();
     }
 
@@ -338,15 +434,30 @@ public partial class MainWindow : Window
         UpdateAutoPeekPauseState();
         try
         {
-            using var dialog = new Forms.FolderBrowserDialog
+            var settingsStore = new SettingsStore();
+            var load = await settingsStore.LoadAsync();
+            if (load.Settings is null)
             {
-                Description = "选择包含 .obsidian 的 Vault 根目录",
-                UseDescriptionForTitle = true,
-            };
-            if (dialog.ShowDialog() == Forms.DialogResult.OK)
-            {
-                await vm.SetVaultAsync(dialog.SelectedPath);
+                vm.StatusText = "配置文件缺失，请重启 InboxDock 完成首次配置。";
+                return;
             }
+
+            var settingsVm = new SettingsViewModel(settingsStore);
+            settingsVm.Load(load.Settings);
+            var window = new SettingsWindow(settingsVm);
+            window.Owner = this;
+            settingsVm.ConfigurationSaved += async () =>
+            {
+                var reloaded = await settingsStore.LoadAsync();
+                if (reloaded.Settings is not null)
+                {
+                    await vm.InitializeWithSettingsAsync(reloaded.Settings);
+                    ApplyAutoHideSetting();
+                    ApplyHotkeySetting();
+                }
+            };
+
+            window.ShowDialog();
         }
         finally
         {
@@ -441,7 +552,15 @@ public partial class MainWindow : Window
     private void OnMaterialCardClick(object sender, MouseButtonEventArgs e)
     {
         RecordActivity();
-        if (sender is Border { Tag: StagedMaterial material }) vm.SelectMaterial(material);
+        if (sender is not Border { Tag: StagedMaterial material }) return;
+        if (vm.IsBatchMode)
+        {
+            vm.ToggleBatchSelectionCommand.Execute(material);
+        }
+        else
+        {
+            vm.SelectMaterial(material);
+        }
     }
 
     private void OnRequestRemove(object sender, RoutedEventArgs e)
@@ -449,6 +568,43 @@ public partial class MainWindow : Window
         RecordActivity();
         e.Handled = true;
         if (sender is System.Windows.Controls.Button { Tag: StagedMaterial material }) vm.RequestRemove(material);
+    }
+
+    private void OnToggleBatchMode(object sender, RoutedEventArgs e)
+    {
+        RecordActivity();
+        vm.ToggleBatchModeCommand.Execute(null);
+    }
+
+    private async void OnBatchSave(object sender, RoutedEventArgs e)
+    {
+        RecordActivity();
+        await vm.SaveBatchToSelectedTargetAsync();
+    }
+
+    private async void OnBatchRemove(object sender, RoutedEventArgs e)
+    {
+        RecordActivity();
+        if (vm.SelectedBatchCount == 0) return;
+        var confirmed = System.Windows.MessageBox.Show(
+            $"确认移除 {vm.SelectedBatchCount} 项暂存材料？\n只删除 InboxDock 的暂存副本，原文件不会动。",
+            "批量移除确认",
+            MessageBoxButton.OKCancel,
+            MessageBoxImage.Question);
+        if (confirmed != MessageBoxResult.OK) return;
+        await vm.RemoveBatchAsync();
+    }
+
+    private void OnBatchSelectAll(object sender, RoutedEventArgs e)
+    {
+        RecordActivity();
+        vm.SelectAllBatchCommand.Execute(null);
+    }
+
+    private void OnBatchClear(object sender, RoutedEventArgs e)
+    {
+        RecordActivity();
+        vm.ClearBatchSelectionCommand.Execute(null);
     }
 
     private async void OnConfirmSelected(object sender, RoutedEventArgs e)
@@ -481,10 +637,72 @@ public partial class MainWindow : Window
         await vm.AppendDailyAsync();
     }
 
+    private void OnCopyLastError(object sender, RoutedEventArgs e)
+    {
+        RecordActivity();
+        var error = vm.CopyLastError();
+        if (string.IsNullOrEmpty(error)) return;
+        try
+        {
+            System.Windows.Clipboard.SetText(error);
+            vm.StatusText = "错误信息已复制";
+        }
+        catch
+        {
+            vm.StatusText = "复制失败";
+        }
+    }
+
+    private void OnOpenLastNote(object sender, RoutedEventArgs e)
+    {
+        RecordActivity();
+        vm.OpenLastNote();
+    }
+
     private async void OnUndo(object sender, RoutedEventArgs e)
     {
         RecordActivity();
         await vm.UndoAsync();
+    }
+
+    private async void OnConfirmPreview(object sender, RoutedEventArgs e)
+    {
+        RecordActivity();
+        await vm.ConfirmPreviewAsync();
+    }
+
+    private void OnCancelPreview(object sender, RoutedEventArgs e)
+    {
+        RecordActivity();
+        vm.CancelPreview();
+    }
+
+    /// <summary>显示更新通知徽章。latestVersion 格式如 v0.4.0。</summary>
+    public void ShowUpdateNotification(string latestVersion, string releaseUrl)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            UpdateBadge.Visibility = Visibility.Visible;
+            UpdateBadgeText.Text = $"新版本 {latestVersion}";
+            updateUrl = releaseUrl;
+        });
+    }
+
+    private void OnUpdateBadgeClick(object sender, RoutedEventArgs e)
+    {
+        RecordActivity();
+        if (string.IsNullOrEmpty(updateUrl)) return;
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(updateUrl)
+            {
+                UseShellExecute = true,
+            });
+        }
+        catch
+        {
+            vm.StatusText = "打开发布页面失败";
+        }
     }
 
     private void OnMaterialCardLoaded(object sender, RoutedEventArgs e)
@@ -560,7 +778,11 @@ public partial class MainWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(MainViewModel.IsBusy) or nameof(MainViewModel.IsConfirmationOpen))
+        if (e.PropertyName is nameof(MainViewModel.IsBusy)
+            or nameof(MainViewModel.IsConfirmationOpen)
+            or nameof(MainViewModel.IsBatchMode)
+            or nameof(MainViewModel.IsBatchProcessing)
+            or nameof(MainViewModel.IsPreviewOpen))
         {
             UpdateAutoPeekPauseState();
         }
@@ -580,6 +802,9 @@ public partial class MainWindow : Window
                           || settingsOpen
                           || vm.IsBusy
                           || vm.IsConfirmationOpen
+                          || vm.IsBatchMode
+                          || vm.IsBatchProcessing
+                          || vm.IsPreviewOpen
                           || !IsVisible;
         if (shouldPause && !autoPeek.IsPaused)
         {
@@ -706,6 +931,9 @@ public partial class MainWindow : Window
         MouseEnter -= OnWindowMouseEnter;
         MouseLeave -= OnWindowMouseLeave;
         vm.PropertyChanged -= OnViewModelPropertyChanged;
+        vm.PostSuccessPeekRequested -= OnPostSuccessPeekRequested;
+        hotkey.HotkeyPressed -= OnHotkeyPressed;
+        hotkey.Dispose();
         vm.Dispose();
         tray.DoubleClick -= OnTrayDoubleClick;
         tray.Visible = false;

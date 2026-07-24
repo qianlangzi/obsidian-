@@ -1,6 +1,7 @@
 <Application x:Class="InboxDock.App.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:InboxDock.App.Converters"
              ShutdownMode="OnExplicitShutdown">
   <Application.Resources>
     <SolidColorBrush x:Key="Paper" Color="#F5F2EA" />
@@ -17,6 +18,17 @@
     <SolidColorBrush x:Key="WarmSoft" Color="#F5EBD8" />
     <SolidColorBrush x:Key="Danger" Color="#B4473A" />
     <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+    <converters:StepToVisibilityConverter x:Key="StepToVisibility1" Step="1" />
+    <converters:StepToVisibilityConverter x:Key="StepToVisibility2" Step="2" />
+    <converters:NonEmptyStringToVisibilityConverter x:Key="NonEmptyToVisibility" />
+    <converters:WriteModeToPathVisibilityConverter x:Key="WriteModeToPathVisibility" />
+    <converters:WriteModeToFileNameVisibilityConverter x:Key="WriteModeToFileNameVisibility" />
+    <converters:AttachmentKindToDirectoryVisibilityConverter x:Key="AttachmentKindToDirectoryVisibility" />
+    <converters:WriteModeToLabelConverter x:Key="WriteModeToLabel" />
+    <converters:BatchModeLabelConverter x:Key="BatchModeLabel" />
+    <converters:NonZeroBoolConverter x:Key="NonZeroBool" />
+    <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility" />
+    <converters:BoolToOnOffConverter x:Key="BoolToOnOff" />
 
     <Style TargetType="TextBlock">
       <Setter Property="FontFamily" Value="Microsoft YaHei UI" />

@@ -168,6 +168,56 @@ public sealed class MaterialStagingServiceTests : IDisposable
         Assert.Equal(string.Empty, restarted.Snapshot.DraftText);
     }
 
+    [Fact]
+    public async Task UpdatePreferredTargetAsync_PersistsAcrossRestart()
+    {
+        var targetId = Guid.NewGuid();
+        var service = CreateService();
+        await service.LoadAsync();
+        var material = await service.StageDraftAsync("选择目标后保留");
+
+        await service.UpdatePreferredTargetAsync(material.Id, targetId);
+
+        var restarted = CreateService();
+        await restarted.LoadAsync();
+        var restored = Assert.Single(restarted.Snapshot.Items);
+        Assert.Equal(targetId, restored.PreferredTargetId);
+    }
+
+    [Fact]
+    public async Task UpdatePreferredTargetAsync_WithNull_ClearsSelection()
+    {
+        var service = CreateService();
+        await service.LoadAsync();
+        var material = await service.StageDraftAsync("清除目标");
+        await service.UpdatePreferredTargetAsync(material.Id, Guid.NewGuid());
+
+        await service.UpdatePreferredTargetAsync(material.Id, null);
+
+        var restored = Assert.Single(service.Snapshot.Items);
+        Assert.Null(restored.PreferredTargetId);
+    }
+
+    [Fact]
+    public async Task StageFilesAsync_OldMaterialWithoutPreferredTarget_CoexistsWithNewSelection()
+    {
+        // 模拟删除目标后：材料仍在，PreferredTargetId 指向已不存在的目标。
+        var staleTargetId = Guid.NewGuid();
+        var first = CreateService();
+        await first.LoadAsync();
+        var material = await first.StageDraftAsync("旧目标已删除");
+        await first.UpdatePreferredTargetAsync(material.Id, staleTargetId);
+
+        // 材料仍可正常加载，UI 会提示重新选择目标。
+        var restarted = CreateService();
+        var result = await restarted.LoadAsync();
+
+        Assert.Null(result.Error);
+        var restored = Assert.Single(restarted.Snapshot.Items);
+        Assert.Equal(staleTargetId, restored.PreferredTargetId);
+        Assert.Equal(StagedMaterialStatus.AwaitingConfirmation, restored.Status);
+    }
+
     private MaterialStagingService CreateService()
     {
         var store = new StagingStore(Path.Combine(root, "staging"));

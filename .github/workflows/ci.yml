@@ -1,15 +1,39 @@
 name: CI
+
 on:
   push:
+    branches: [main, master]
   pull_request:
+    branches: [main, master]
+
 jobs:
   build:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-      - run: dotnet restore InboxDock.sln
-      - run: dotnet build InboxDock.sln -c Release --no-restore
-      - run: dotnet test InboxDock.sln -c Release --no-build
+
+      - name: Restore
+        run: dotnet restore InboxDock.sln
+
+      - name: Build
+        run: dotnet build InboxDock.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test InboxDock.sln -c Release --no-build --logger "console;verbosity=normal"
+
+      - name: Verify zero warnings
+        shell: pwsh
+        run: |
+          $output = dotnet build InboxDock.sln -c Release --no-restore 2>&1
+          $warnings = $output | Select-String -Pattern "warning\b" -CaseSensitive
+          if ($warnings.Count -gt 0) {
+            Write-Host "::error::Build produced $($warnings.Count) warning(s)"
+            $warnings | ForEach-Object { Write-Host $_ }
+            exit 1
+          }
+          Write-Host "No warnings detected."

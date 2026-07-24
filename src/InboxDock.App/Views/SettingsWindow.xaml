@@ -1,0 +1,422 @@
+<Window x:Class="InboxDock.App.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="InboxDock 设置"
+        Width="720"
+        Height="640"
+        ResizeMode="CanResize"
+        MinWidth="640"
+        MinHeight="560"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Paper}">
+  <Grid Margin="24,20">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <!-- Vault 信息 -->
+    <StackPanel Grid.Row="0" Margin="0,0,0,16">
+      <TextBlock FontSize="18" FontWeight="SemiBold" Text="Vault" />
+      <StackPanel Margin="0,8,0,0" Orientation="Horizontal">
+        <TextBlock Text="名称：" Foreground="{StaticResource Muted}" FontSize="12" />
+        <TextBlock Text="{Binding VaultName}" FontSize="12" Margin="4,0,16,0" />
+        <TextBlock Text="路径：" Foreground="{StaticResource Muted}" FontSize="12" />
+        <TextBlock Text="{Binding VaultPath}" FontSize="12" Margin="4,0,0,0" />
+      </StackPanel>
+
+      <!-- 自动收回 -->
+      <StackPanel Margin="0,14,0,0" Orientation="Horizontal">
+        <TextBlock VerticalAlignment="Center"
+                   Text="自动收回："
+                   Foreground="{StaticResource Muted}"
+                   FontSize="12" />
+        <ComboBox Margin="10,0,0,0"
+                  MinWidth="120"
+                  ItemsSource="{Binding AutoHideOptions}"
+                  DisplayMemberPath="Label"
+                  SelectedItem="{Binding SelectedAutoHideOption}" />
+      </StackPanel>
+
+      <!-- 全局快捷键 -->
+      <StackPanel Margin="0,14,0,0">
+        <StackPanel Orientation="Horizontal">
+          <TextBlock VerticalAlignment="Center"
+                     Text="全局快捷键："
+                     Foreground="{StaticResource Muted}"
+                     FontSize="12" />
+          <!-- 捕获模式 -->
+          <Border x:Name="HotkeyCaptureArea"
+                  Margin="10,0,0,0"
+                  MinWidth="140"
+                  Padding="12,6"
+                  CornerRadius="8"
+                  BorderThickness="2"
+                  BorderBrush="{StaticResource Accent}"
+                  Background="{StaticResource AccentSoft}"
+                  Focusable="True"
+                  PreviewKeyDown="OnHotkeyCaptureKeyDown"
+                  Visibility="{Binding IsCapturingHotkey, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock Text="请按下快捷键…"
+                       Foreground="{StaticResource Accent}"
+                       FontSize="12" />
+          </Border>
+          <!-- 显示当前快捷键 -->
+          <Border Margin="10,0,0,0"
+                  MinWidth="140"
+                  Padding="12,6"
+                  CornerRadius="8"
+                  BorderThickness="1"
+                  BorderBrush="{StaticResource Line}"
+                  Background="{StaticResource PaperRaised}"
+                  Visibility="{Binding IsCapturingHotkey, Converter={StaticResource InverseBoolToVisibility}}">
+            <TextBlock Text="{Binding GlobalHotkey}" FontSize="12" />
+          </Border>
+          <Button Style="{StaticResource SecondaryButton}"
+                  Padding="12,6"
+                  Margin="8,0,0,0"
+                  Content="修改"
+                  Command="{Binding StartCaptureHotkeyCommand}"
+                  Visibility="{Binding IsCapturingHotkey, Converter={StaticResource InverseBoolToVisibility}}" />
+          <Button Style="{StaticResource SecondaryButton}"
+                  Padding="12,6"
+                  Margin="8,0,0,0"
+                  Content="取消"
+                  Command="{Binding CancelCaptureHotkeyCommand}"
+                  Visibility="{Binding IsCapturingHotkey, Converter={StaticResource BoolToVisibility}}" />
+          <Button Style="{StaticResource SecondaryButton}"
+                  Padding="12,6"
+                  Margin="8,0,0,0"
+                  Content="重置"
+                  Command="{Binding ResetHotkeyCommand}" />
+        </StackPanel>
+        <TextBlock Margin="0,4,0,0"
+                   FontSize="11"
+                   Foreground="{StaticResource Danger}"
+                   Text="{Binding HotkeyCaptureError}"
+                   Visibility="{Binding HotkeyCaptureError, Converter={StaticResource NonEmptyToVisibility}}" />
+      </StackPanel>
+
+      <!-- 开机自启动 -->
+      <StackPanel Margin="0,14,0,0">
+        <StackPanel Orientation="Horizontal">
+          <TextBlock VerticalAlignment="Center"
+                     Text="开机自启动："
+                     Foreground="{StaticResource Muted}"
+                     FontSize="12" />
+          <Button Style="{StaticResource SecondaryButton}"
+                  Margin="10,0,0,0"
+                  Padding="12,6"
+                  MinWidth="72"
+                  Content="{Binding LaunchAtSignIn, Converter={StaticResource BoolToOnOff}}"
+                  Command="{Binding ToggleLaunchAtSignInCommand}" />
+        </StackPanel>
+        <TextBlock Margin="0,4,0,0"
+                   FontSize="11"
+                   Foreground="#9A641D"
+                   Text="{Binding LaunchAtSignInNote}"
+                   Visibility="{Binding LaunchAtSignInNote, Converter={StaticResource NonEmptyToVisibility}}" />
+      </StackPanel>
+
+      <!-- 诊断与日志 -->
+      <StackPanel Margin="0,14,0,0">
+        <TextBlock Text="诊断与日志"
+                   FontSize="12"
+                   FontWeight="SemiBold"
+                   Foreground="{StaticResource Muted}" />
+        <TextBlock Margin="0,4,0,8"
+                   FontSize="10"
+                   Foreground="{StaticResource Faint}"
+                   TextWrapping="Wrap"
+                   Text="日志只记录版本、时间和错误类型，不记录笔记正文和文件内容。" />
+        <StackPanel Orientation="Horizontal">
+          <Button Style="{StaticResource SecondaryButton}"
+                  Padding="12,6"
+                  Margin="0,0,8,0"
+                  Content="打开日志目录"
+                  Click="OnOpenLogDirectory" />
+          <Button Style="{StaticResource SecondaryButton}"
+                  Padding="12,6"
+                  Margin="0,0,8,0"
+                  Content="打开暂存目录"
+                  Click="OnOpenStagingDirectory" />
+          <Button Style="{StaticResource SecondaryButton}"
+                  Padding="12,6"
+                  Content="复制诊断信息"
+                  Click="OnCopyDiagnostics" />
+        </StackPanel>
+      </StackPanel>
+    </StackPanel>
+
+    <!-- 收集目标列表 -->
+    <Grid Grid.Row="1">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+      </Grid.RowDefinitions>
+
+      <Grid Grid.Row="0" Margin="0,0,0,8">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBlock Grid.Column="0" FontSize="14" FontWeight="SemiBold" Text="收集目标" />
+        <Button Grid.Column="1"
+                Style="{StaticResource SecondaryButton}"
+                Padding="12,6"
+                Content="+ 新建目标"
+                Command="{Binding AddTargetCommand}" />
+      </Grid>
+
+      <ListBox Grid.Row="1"
+               ItemsSource="{Binding Targets}"
+               SelectedItem="{Binding SelectedTarget}"
+               BorderThickness="0"
+               Background="Transparent">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <Border Margin="0,4,0,4"
+                    Padding="14,10"
+                    CornerRadius="10"
+                    BorderThickness="1"
+                    BorderBrush="{StaticResource Line}"
+                    Background="{StaticResource PaperRaised}">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           VerticalAlignment="Center"
+                           FontSize="16"
+                           Margin="0,0,12,0"
+                           Text="{Binding Icon}" />
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                  <TextBlock FontSize="13" FontWeight="SemiBold" Text="{Binding Name}" />
+                  <TextBlock FontSize="11" Foreground="{StaticResource Muted}" Text="{Binding WriteMode, Converter={StaticResource WriteModeToLabel}}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                  <TextBlock VerticalAlignment="Center"
+                             Margin="0,0,8,0"
+                             FontSize="13"
+                             Foreground="{StaticResource Accent}"
+                             Visibility="{Binding IsDefault, Converter={StaticResource BoolToVisibility}}"
+                             Text="默认" />
+                  <Button Style="{StaticResource IconButton}"
+                          Width="28" Height="28"
+                          Padding="0"
+                          Content="↑"
+                          Command="{Binding DataContext.MoveUpCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                          CommandParameter="{Binding}" />
+                  <Button Style="{StaticResource IconButton}"
+                          Width="28" Height="28"
+                          Margin="4,0,0,0"
+                          Padding="0"
+                          Content="↓"
+                          Command="{Binding DataContext.MoveDownCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                          CommandParameter="{Binding}" />
+                  <Button Style="{StaticResource IconButton}"
+                          Width="28" Height="28"
+                          Margin="4,0,0,0"
+                          Padding="0"
+                          Content="✎"
+                          Command="{Binding DataContext.EditTargetCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                          CommandParameter="{Binding}" />
+                  <Button Style="{StaticResource IconButton}"
+                          Width="28" Height="28"
+                          Margin="4,0,0,0"
+                          Padding="0"
+                          Content="★"
+                          Command="{Binding DataContext.SetDefaultCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                          CommandParameter="{Binding}" />
+                  <Button Style="{StaticResource IconButton}"
+                          Width="28" Height="28"
+                          Margin="4,0,0,0"
+                          Padding="0"
+                          Content="✕"
+                          Foreground="{StaticResource Danger}"
+                          Command="{Binding DataContext.DeleteTargetCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                          CommandParameter="{Binding}" />
+                </StackPanel>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+        <ListBox.ItemContainerStyle>
+          <Style TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+          </Style>
+        </ListBox.ItemContainerStyle>
+      </ListBox>
+    </Grid>
+
+    <!-- 底部按钮 -->
+    <StackPanel Grid.Row="2"
+                Orientation="Horizontal"
+                HorizontalAlignment="Right"
+                Margin="0,16,0,0">
+      <TextBlock VerticalAlignment="Center"
+                 Margin="0,0,16,0"
+                 FontSize="11"
+                 Foreground="{StaticResource Muted}"
+                 Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BoolToVisibility}}"
+                 Text="有未保存的修改" />
+      <Button Style="{StaticResource SecondaryButton}"
+              Padding="18,10"
+              Content="取消"
+              Click="OnCancel" />
+      <Button Margin="8,0,0,0"
+              Style="{StaticResource PrimaryButton}"
+              Padding="18,10"
+              Content="保存"
+              Click="OnSave" />
+    </StackPanel>
+
+    <!-- 目标编辑器（模态覆盖层） -->
+    <Border Grid.Row="0"
+            Grid.RowSpan="3"
+            Background="#80000000"
+            Visibility="{Binding IsEditorOpen, Converter={StaticResource BoolToVisibility}}">
+      <Border HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              Width="560"
+              MaxHeight="600"
+              Margin="0,12"
+              Padding="28,22"
+              CornerRadius="14"
+              Background="{StaticResource Paper}"
+              DataContext="{Binding Editor}">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+
+          <!-- 标题 -->
+          <TextBlock Grid.Row="0"
+                     FontSize="16"
+                     FontWeight="SemiBold"
+                     Text="目标编辑" />
+
+          <!-- 表单 -->
+          <ScrollViewer Grid.Row="1"
+                        Margin="0,12,0,0"
+                        VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+              <!-- 名称与图标 -->
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                  <TextBlock Text="名称" FontSize="11" Foreground="{StaticResource Muted}" Margin="0,0,0,4" />
+                  <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                  <TextBlock Text="图标" FontSize="11" Foreground="{StaticResource Muted}" Margin="0,0,0,4" />
+                  <TextBox Width="56"
+                          HorizontalContentAlignment="Center"
+                          FontSize="18"
+                          Text="{Binding Icon, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+              </Grid>
+
+              <!-- 写入方式 -->
+              <TextBlock Text="写入方式"
+                         FontSize="11"
+                         Foreground="{StaticResource Muted}"
+                         Margin="0,14,0,4" />
+              <ComboBox ItemsSource="{Binding WriteModes}"
+                        DisplayMemberPath="Label"
+                        SelectedItem="{Binding SelectedWriteMode}" />
+
+              <!-- 路径模板（非 StagingOnly 时显示） -->
+              <StackPanel Visibility="{Binding SelectedWriteMode.Mode, Converter={StaticResource WriteModeToPathVisibility}}">
+                <TextBlock Text="路径模板"
+                           FontSize="11"
+                           Foreground="{StaticResource Muted}"
+                           Margin="0,14,0,4" />
+                <TextBox Text="{Binding PathTemplate, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock Margin="0,4,0,0"
+                           FontSize="10"
+                           Foreground="{StaticResource Faint}"
+                           TextWrapping="Wrap"
+                           Text="Vault 相对路径。支持 {{date}}、{{title}} 等变量。" />
+              </StackPanel>
+
+              <!-- 新建笔记文件名模板（仅 CreateNote 时显示） -->
+              <StackPanel Visibility="{Binding SelectedWriteMode.Mode, Converter={StaticResource WriteModeToFileNameVisibility}}">
+                <TextBlock Text="文件名模板"
+                           FontSize="11"
+                           Foreground="{StaticResource Muted}"
+                           Margin="0,14,0,4" />
+                <TextBox Text="{Binding FileNameTemplate, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
+
+              <!-- 高级选项折叠区 -->
+              <Button Style="{StaticResource SecondaryButton}"
+                      Margin="0,18,0,0"
+                      HorizontalAlignment="Left"
+                      Padding="12,6"
+                      Click="ToggleAdvanced_Click"
+                      Content="高级选项" />
+
+              <StackPanel Visibility="{Binding IsAdvancedExpanded, Converter={StaticResource BoolToVisibility}}">
+                <!-- 正文模板 -->
+                <TextBlock Text="正文模板"
+                           FontSize="11"
+                           Foreground="{StaticResource Muted}"
+                           Margin="0,14,0,4" />
+                <TextBox MinLines="3"
+                         AcceptsReturn="True"
+                         Text="{Binding ContentTemplate, UpdateSourceTrigger=PropertyChanged}" />
+
+                <!-- 附件策略 -->
+                <TextBlock Text="附件策略"
+                           FontSize="11"
+                           Foreground="{StaticResource Muted}"
+                           Margin="0,14,0,4" />
+                <ComboBox ItemsSource="{Binding AttachmentKinds}"
+                          DisplayMemberPath="Label"
+                          SelectedItem="{Binding SelectedAttachmentKind}" />
+
+                <!-- 附件目录模板 -->
+                <StackPanel Visibility="{Binding SelectedAttachmentKind.Kind, Converter={StaticResource AttachmentKindToDirectoryVisibility}}">
+                  <TextBlock Text="附件目录模板"
+                             FontSize="11"
+                             Foreground="{StaticResource Muted}"
+                             Margin="0,14,0,4" />
+                  <TextBox Text="{Binding AttachmentDirectoryTemplate, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+
+          <!-- 编辑器底部按钮 -->
+          <StackPanel Grid.Row="2"
+                      Orientation="Horizontal"
+                      HorizontalAlignment="Right"
+                      Margin="0,16,0,0">
+            <Button Style="{StaticResource SecondaryButton}"
+                    Padding="18,10"
+                    Content="取消"
+                    Command="{Binding DataContext.CancelEditorCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+            <Button Margin="8,0,0,0"
+                    Style="{StaticResource PrimaryButton}"
+                    Padding="18,10"
+                    Content="确定"
+                    Command="{Binding DataContext.CommitEditorCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+          </StackPanel>
+        </Grid>
+      </Border>
+    </Border>
+  </Grid>
+</Window>
